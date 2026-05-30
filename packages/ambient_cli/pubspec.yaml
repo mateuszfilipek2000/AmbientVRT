@@ -1,0 +1,17 @@
+name: ambient_cli
+description: The `ambient` command-line interface — init, test, capture, and accept, orchestrating the AmbientVRT core.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+resolution: workspace
+
+dependencies:
+  ambient_core:
+    path: ../ambient_core
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
