@@ -19,6 +19,7 @@ export 'src/manifest/manifest_entry.dart';
 export 'src/manifest/manifest_version.dart';
 export 'src/manifest/platform.dart';
 export 'src/manifest/variant.dart';
+export 'src/report/report.dart';
 export 'src/run/run.dart';
 export 'src/storage/storage.dart';
 
