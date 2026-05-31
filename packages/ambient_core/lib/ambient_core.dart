@@ -4,6 +4,15 @@
 /// backends, and report generation shared by every capture adapter.
 library;
 
-/// Marker for the core package version. Replaced by real APIs as the
-/// engine is implemented (see backlog phases 1–2).
+export 'src/manifest/brightness.dart';
+export 'src/manifest/errors.dart';
+export 'src/manifest/manifest.dart';
+export 'src/manifest/manifest_entry.dart';
+export 'src/manifest/manifest_version.dart';
+export 'src/manifest/platform.dart';
+export 'src/manifest/variant.dart';
+
+/// Marker for the core package version. The manifest model (above) is the
+/// first real surface; the comparator, storage, and report engine land in
+/// later backlog phases.
 const String ambientCoreVersion = '0.1.0';
