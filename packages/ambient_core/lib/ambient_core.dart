@@ -4,6 +4,11 @@
 /// backends, and report generation shared by every capture adapter.
 library;
 
+export 'src/config/adapter.dart';
+export 'src/config/compare_config.dart';
+export 'src/config/config.dart';
+export 'src/config/errors.dart';
+export 'src/config/storage_config.dart';
 export 'src/manifest/brightness.dart';
 export 'src/manifest/errors.dart';
 export 'src/manifest/manifest.dart';
