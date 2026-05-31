@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../manifest/manifest.dart';
 import 'baseline_storage.dart';
 
 /// Filesystem-backed baseline storage rooted at a single directory.
@@ -49,6 +50,16 @@ final class LocalStorageBackend implements BaselineStorage {
   }
 
   @override
+  Future<Manifest?> getAcceptedManifest({String? branch}) async {
+    final file = File(_acceptedManifestPath);
+    if (!await file.exists()) {
+      return null;
+    }
+
+    return Manifest.fromJsonString(await file.readAsString());
+  }
+
+  @override
   Future<void> putBaseline(
     String id,
     Uint8List pngBytes, {
@@ -65,6 +76,22 @@ final class LocalStorageBackend implements BaselineStorage {
     await tempFile.writeAsBytes(pngBytes, flush: true);
     await tempFile.rename(_pathForId(id));
   }
+
+  @override
+  Future<void> putAcceptedManifest(Manifest manifest, {String? branch}) async {
+    await _rootDirectory.create(recursive: true);
+
+    final tempFile = File(
+      _filePathForName(
+        '.$_acceptedManifestFileName.${DateTime.now().microsecondsSinceEpoch}.tmp',
+      ),
+    );
+    await tempFile.writeAsString(manifest.toJsonString(), flush: true);
+    await tempFile.rename(_acceptedManifestPath);
+  }
+
+  String get _acceptedManifestPath =>
+      _filePathForName(_acceptedManifestFileName);
 
   String _pathForId(String id) {
     final encodedId = _encodedId(id);
@@ -90,3 +117,4 @@ final class LocalStorageBackend implements BaselineStorage {
 }
 
 const String _baselineExtension = '.png';
+const String _acceptedManifestFileName = '.accepted-manifest.json';

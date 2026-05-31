@@ -60,6 +60,45 @@ void main() {
         orderedEquals(['button']),
       );
     });
+
+    test(
+      'ignores branch when storing and reading the accepted manifest',
+      () async {
+        tempDirectory = await Directory.systemTemp.createTemp(
+          'ambient-local-storage-accepted-manifest-',
+        );
+        addTearDown(() async {
+          if (await tempDirectory.exists()) {
+            await tempDirectory.delete(recursive: true);
+          }
+        });
+
+        final storage = LocalStorageBackend(directoryPath: tempDirectory.path);
+        const manifest = Manifest(
+          manifestVersion: ManifestVersion(1, 0),
+          entries: [
+            ManifestEntry(
+              id: 'button',
+              platform: Platform.flutter,
+              width: 64,
+              height: 32,
+              dpr: 1,
+              contentHash:
+                  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              envFingerprint: 'test-env',
+              imagePath: 'captures/button.png',
+            ),
+          ],
+        );
+
+        await storage.putAcceptedManifest(manifest, branch: 'feature-branch');
+
+        expect(
+          await storage.getAcceptedManifest(branch: 'main'),
+          equals(manifest),
+        );
+      },
+    );
   });
 }
 
