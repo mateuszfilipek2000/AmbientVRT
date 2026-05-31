@@ -1,0 +1,29 @@
+name: ambientvrt_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+workspace:
+  - packages/ambient_core
+  - packages/ambient_cli
+  - packages/ambient_flutter
+
+dev_dependencies:
+  melos: ^7.8.0
+
+melos:
+  scripts:
+    analyze:
+      description: Run `dart analyze` in every package.
+      run: dart analyze .
+      exec:
+        concurrency: 1
+
+    test:
+      description: Run tests in every package that has them.
+      run: dart test
+      exec:
+        concurrency: 1
+      packageFilters:
+        dirExists: test

@@ -2,3 +2,14 @@ backlog.md
 implementation_plan.md
 prd.md
 preview_snapshot/
+
+# Dart / Flutter build artifacts
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+doc/api/
+
+# Melos / IDE generated files
+*.iml
+.idea/
