@@ -32,6 +32,54 @@ jobs:
       - name: Validate schemas + fixtures
         run: npm test
 
+  linux-binary:
+    name: Build Linux binary
+    runs-on: ubuntu-latest
+    # Pinned Dart/Flutter toolchain image (bundles a matching Dart SDK), NOT the
+    # default runner image. The canonical definition lives in
+    # docker/dart-toolchain/Dockerfile, which is FROM this same tag; keep them
+    # in sync. See that Dockerfile for why CI references the base tag directly.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    outputs:
+      artifact_name: ${{ steps.asset.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Build standalone binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+
+      - name: Derive artifact name
+        id: asset
+        run: |
+          case "$(uname -m)" in
+            x86_64) asset_arch=x64 ;;
+            aarch64|arm64) asset_arch=arm64 ;;
+            *) asset_arch=$(uname -m) ;;
+          esac
+          artifact_name="ambient-linux-${asset_arch}"
+          cp "$RUNNER_TEMP/ambient" "$RUNNER_TEMP/$artifact_name"
+          chmod +x "$RUNNER_TEMP/$artifact_name"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+
+      - name: Install Node.js for artifact actions
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      # Local `act` runs need `--artifact-server-path <dir>` so this artifact can
+      # be shared with the Node smoke-test job.
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.asset.outputs.artifact_name }}
+          path: ${{ runner.temp }}/${{ steps.asset.outputs.artifact_name }}
+          if-no-files-found: error
+          retention-days: 7
+
   dart:
     name: Dart analyze + test
     runs-on: ubuntu-latest
@@ -70,7 +118,8 @@ jobs:
         run: melos run workspace-test --no-select
 
   js:
-    name: JS lint + build
+    name: JS build + test + lint
+    needs: linux-binary
     runs-on: ubuntu-latest
     # Pinned Node toolchain image, NOT the default runner image.
     container: node:20-bookworm-slim
@@ -80,14 +129,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download Linux binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.linux-binary.outputs.artifact_name }}
+          path: ${{ runner.temp }}/ambient-binary
+
       - name: Install
+        env:
+          AMBIENT_BINARY_PATH: ${{ runner.temp }}/ambient-binary/${{ needs.linux-binary.outputs.artifact_name }}
         run: npm ci
 
       - name: Build
         run: npm run build
 
+      - name: Test
+        run: npm test
+
       - name: Lint
         run: npm run lint
 
-      - name: Smoke-check the bin entrypoint
+      - name: Smoke-check the installed wrapper
         run: node ./bin/ambient.js --version
