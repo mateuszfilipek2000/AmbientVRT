@@ -57,7 +57,27 @@ parsing to JSON.
 | --- | --- | --- | --- |
 | `platform` | enum `flutter` \| `react-native` | yes | — |
 | `projectPath` | string | required **when** `platform: flutter` | Project root. |
+| `command` | array of non-empty strings | no | Override the adapter executable and fixed argv prefix. When omitted, AmbientVRT uses the platform default binary name (`ambient-flutter-capture` / `ambient-rn-capture`). |
 | `storybookStaticDir` | string | required **when** `platform: react-native` | Built Storybook static dir. |
+
+## Capture subprocess contract
+
+The CLI orchestrator invokes each adapter as a subprocess and treats it as an
+opaque executable. The adapter command comes from `adapter.command` when set,
+otherwise the platform default binary name is used.
+
+For every adapter invocation, AmbientVRT appends these arguments:
+
+- `--out-dir <dir>` — directory where the adapter must write its PNGs and
+  `manifest.json`.
+- `--project-path <dir>` — for `platform: flutter`.
+- `--storybook-static-dir <dir>` — for `platform: react-native`.
+- `--variant <value>` — repeated once per configured variant.
+- `--canonical-env <value>` — when the config sets `canonicalEnv`.
+
+The adapter must exit non-zero on failure. On success it must emit a
+schema-valid `manifest.json` in `--out-dir`, with every `imagePath` pointing to
+PNG files under that same directory.
 
 ### Storage
 
@@ -76,8 +96,10 @@ fails with a located error.
 adapters:
   - platform: flutter
     projectPath: ./
+    # command: [ambient-flutter-capture]
   - platform: react-native
     storybookStaticDir: ./storybook-static
+    # command: [ambient-rn-capture]
 storage:
   backend: local
   path: .ambient/baselines
