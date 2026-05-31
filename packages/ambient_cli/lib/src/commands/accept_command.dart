@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:ambient_core/ambient_core.dart';
 import 'package:args/args.dart';
 
 import '../ambient_environment.dart';
 import '../cli_exception.dart';
+import '../orchestrator/capture_orchestrator.dart';
 import 'ambient_command.dart';
 import 'run_command_support.dart';
 
@@ -36,25 +39,39 @@ final class AcceptCommand extends AmbientCommand {
   String get description => 'Accept current captures as blessed baselines.';
 
   @override
-  String get invocation => 'accept --run-dir <path> [options]';
+  String get invocation => 'accept [options]';
 
   @override
   Future<int> run(ArgResults results, AmbientEnvironment environment) async {
-    final runDirectoryPath = requireRunDirectory(
-      environment: environment,
-      runDirectory: results.option('run-dir'),
-      usage: usage,
-    );
     final branch = results.option('branch');
+    final requestedRunDirectory = results.option('run-dir');
+    final manifestPath = results.option('manifest');
+    if (requestedRunDirectory == null && manifestPath != null) {
+      throw AmbientUsageException(
+        '--manifest can only be used together with --run-dir.',
+        usage: usage,
+      );
+    }
     final loadedConfig = await loadConfig(
       environment: environment,
       configPath: results.option('config')!,
     );
-    final manifest = await loadManifest(
-      environment: environment,
-      runDirectoryPath: runDirectoryPath,
-      manifestPath: results.option('manifest'),
-    );
+    final orchestratedRunDirectory = requestedRunDirectory == null
+        ? await captureConfiguredAdapters(
+            loadedConfig: loadedConfig,
+            environment: environment,
+          )
+        : null;
+    final runDirectoryPath =
+        orchestratedRunDirectory?.runDirectoryPath ??
+        environment.resolveFromCurrentDirectory(requestedRunDirectory!);
+    final manifest =
+        orchestratedRunDirectory?.manifest ??
+        await loadManifest(
+          environment: environment,
+          runDirectoryPath: runDirectoryPath,
+          manifestPath: manifestPath,
+        );
     final storage = createStorage(
       loadedConfig: loadedConfig,
       environment: environment,
@@ -72,16 +89,23 @@ final class AcceptCommand extends AmbientCommand {
     final ids = results.multiOption('id');
     final idsToAccept = ids.isEmpty ? null : ids.toSet();
 
-    await acceptRun(
-      runResult,
-      storage: storage,
-      ids: idsToAccept,
-      branch: branch,
-    );
+    final deleteCapturedRunDirectory = orchestratedRunDirectory != null;
+    try {
+      await acceptRun(
+        runResult,
+        storage: storage,
+        ids: idsToAccept,
+        branch: branch,
+      );
 
-    environment.writeOut(
-      'Accepted ${idsToAccept?.length ?? runResult.snapshots.length} snapshot(s).',
-    );
-    return AmbientExitCode.success;
+      environment.writeOut(
+        'Accepted ${idsToAccept?.length ?? runResult.snapshots.length} snapshot(s).',
+      );
+      return AmbientExitCode.success;
+    } finally {
+      if (deleteCapturedRunDirectory) {
+        await Directory(runDirectoryPath).delete(recursive: true);
+      }
+    }
   }
 }

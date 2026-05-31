@@ -61,8 +61,10 @@ const String _defaultConfigFileName = 'ambient.config.yaml';
 const String _defaultConfigTemplate = '''adapters:
   - platform: flutter
     projectPath: ./
+    # command: [ambient-flutter-capture]
   - platform: react-native
     storybookStaticDir: ./storybook-static
+    # command: [ambient-rn-capture]
 storage:
   backend: local
   path: .ambient/baselines
