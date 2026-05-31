@@ -2,7 +2,8 @@
   "adapters": [
     {
       "platform": "flutter",
-      "projectPath": "./"
+      "projectPath": "./",
+      "command": ["ambient-flutter-capture", "--profile", "ci"]
     },
     {
       "platform": "react-native",
