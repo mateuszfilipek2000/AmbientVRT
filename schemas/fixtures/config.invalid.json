@@ -1,0 +1,18 @@
+{
+  "adapters": [
+    {
+      "platform": "flutter"
+    },
+    {
+      "platform": "vue"
+    }
+  ],
+  "storage": {
+    "backend": "local"
+  },
+  "compare": {
+    "threshold": 1.5
+  },
+  "variants": ["light", "light"],
+  "unknownTopLevel": true
+}

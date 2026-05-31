@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ambientvrt.dev/schemas/config.schema.json",
+  "title": "AmbientVRT project config (ambient.config.yaml)",
+  "description": "User-authored configuration declaring adapters, baseline storage, compare thresholds, variants, and the canonical capture environment. Authored as YAML; validated against this schema after parsing to JSON.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapters", "storage"],
+  "properties": {
+    "adapters": {
+      "description": "One or more capture adapters to run.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/adapter" }
+    },
+    "storage": {
+      "description": "Where baselines live. The core stays stateless: baselines only, never run history.",
+      "$ref": "#/$defs/storage"
+    },
+    "compare": {
+      "description": "Pixel comparison tuning.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "description": "Global pixelmatch threshold (0..1). Smaller is stricter. Default 0.1.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "perSnapshot": {
+          "description": "Per-snapshot threshold overrides, keyed by snapshot id.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "variants": {
+      "description": "Variant names the adapters should produce captures for (e.g. light, dark).",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "canonicalEnv": {
+      "description": "Reference to the canonical capture-env image (e.g. ambient/capture-env:<digest>). Captures from a different env are flagged.",
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "$defs": {
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform"],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": ["flutter", "react-native"]
+        },
+        "projectPath": {
+          "description": "Path to the project root (flutter adapter).",
+          "type": "string",
+          "minLength": 1
+        },
+        "storybookStaticDir": {
+          "description": "Path to the built Storybook static dir (react-native adapter).",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "platform": { "const": "flutter" } }
+          },
+          "then": {
+            "required": ["projectPath"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "platform": { "const": "react-native" } }
+          },
+          "then": {
+            "required": ["storybookStaticDir"]
+          }
+        }
+      ]
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend"],
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": ["local", "s3"]
+        },
+        "path": {
+          "description": "Directory for the local backend's baselines.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "backend": { "const": "local" } }
+          },
+          "then": {
+            "required": ["path"]
+          }
+        }
+      ]
+    }
+  }
+}
