@@ -1,0 +1,24 @@
+{
+  "adapters": [
+    {
+      "platform": "flutter",
+      "projectPath": "./"
+    },
+    {
+      "platform": "react-native",
+      "storybookStaticDir": "./storybook-static"
+    }
+  ],
+  "storage": {
+    "backend": "local",
+    "path": ".ambient/baselines"
+  },
+  "compare": {
+    "threshold": 0.1,
+    "perSnapshot": {
+      "components-button--primary::react-native": 0.05
+    }
+  },
+  "variants": ["light", "dark"],
+  "canonicalEnv": "ambient/capture-env@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}

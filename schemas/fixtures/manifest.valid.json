@@ -1,0 +1,31 @@
+{
+  "manifestVersion": "1.0",
+  "entries": [
+    {
+      "id": "components-button--primary::react-native",
+      "platform": "react-native",
+      "width": 320,
+      "height": 240,
+      "dpr": 2,
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "envFingerprint": "ambient/capture-env@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "imagePath": "images/components-button--primary.png"
+    },
+    {
+      "id": "lib/widgets/card.dart::CardPreview::flutter::theme=dark",
+      "platform": "flutter",
+      "variant": {
+        "theme": "material3",
+        "brightness": "dark",
+        "locale": "en-US",
+        "sizeName": "phone"
+      },
+      "width": 390,
+      "height": 844,
+      "dpr": 3,
+      "contentHash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+      "envFingerprint": "ambient/capture-env@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "imagePath": "images/card-preview-dark.png"
+    }
+  ]
+}
