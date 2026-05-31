@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ambientvrt.dev/schemas/manifest.schema.json",
+  "title": "AmbientVRT capture manifest",
+  "description": "The internal contract every capture adapter emits and the core consumes. A top-level manifestVersion gates compatibility; the entries array carries one record per captured snapshot.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifestVersion", "entries"],
+  "properties": {
+    "manifestVersion": {
+      "description": "Manifest format version as major.minor. The core refuses a manifest whose major it does not support.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "entries": {
+      "description": "One record per captured snapshot.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "platform",
+        "width",
+        "height",
+        "dpr",
+        "contentHash",
+        "envFingerprint",
+        "imagePath"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable, semantic, platform-derived snapshot ID. Never positional. Variant suffixes are appended deterministically (e.g. components-button--primary::flutter::theme=dark).",
+          "type": "string",
+          "minLength": 1
+        },
+        "platform": {
+          "description": "Capture platform that produced this snapshot.",
+          "type": "string",
+          "enum": ["flutter", "react-native"]
+        },
+        "variant": {
+          "description": "Structured variant dimensions, kept out of the ID as structured data so the report can group/filter by them.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "theme": { "type": "string", "minLength": 1 },
+            "brightness": { "type": "string", "enum": ["light", "dark"] },
+            "locale": { "type": "string", "minLength": 1 },
+            "sizeName": { "type": "string", "minLength": 1 }
+          }
+        },
+        "width": {
+          "description": "Logical width in pixels.",
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "description": "Logical height in pixels.",
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "dpr": {
+          "description": "Device pixel ratio used to render.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "contentHash": {
+          "description": "SHA-256 (lowercase hex) of the PNG bytes. Powers flake detection and the rename heuristic.",
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "envFingerprint": {
+          "description": "Identifier of the capture environment (canonical Docker image digest or toolchain versions).",
+          "type": "string",
+          "minLength": 1
+        },
+        "imagePath": {
+          "description": "Relative path to the PNG within the run dir. Must be relative and end in .png.",
+          "type": "string",
+          "pattern": "^(?!/)(?!.*\\.\\.).+\\.png$"
+        }
+      }
+    }
+  }
+}

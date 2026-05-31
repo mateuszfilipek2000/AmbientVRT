@@ -1,0 +1,14 @@
+{
+  "name": "@ambientvrt/schemas",
+  "version": "0.0.0",
+  "private": true,
+  "description": "JSON Schemas for the AmbientVRT manifest and config contracts, plus a fixture validator.",
+  "type": "module",
+  "scripts": {
+    "test": "node validate.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
