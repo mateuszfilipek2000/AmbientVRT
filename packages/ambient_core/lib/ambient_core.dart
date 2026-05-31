@@ -18,6 +18,7 @@ export 'src/manifest/manifest_entry.dart';
 export 'src/manifest/manifest_version.dart';
 export 'src/manifest/platform.dart';
 export 'src/manifest/variant.dart';
+export 'src/storage/storage.dart';
 
 /// Marker for the core package version.
 const String ambientCoreVersion = '0.1.0';
