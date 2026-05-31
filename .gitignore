@@ -9,6 +9,7 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 doc/api/
+/ambient
 
 # Melos / IDE generated files
 *.iml
