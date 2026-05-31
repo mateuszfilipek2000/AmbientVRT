@@ -13,6 +13,7 @@ class Adapter {
   const Adapter({
     required this.platform,
     this.projectPath,
+    this.command,
     this.storybookStaticDir,
   });
 
@@ -20,12 +21,14 @@ class Adapter {
   /// field against the schema.
   factory Adapter.fromReader(ConfigReader reader) {
     reader.rejectUnknownKeys(const {
+      'command',
       'platform',
       'projectPath',
       'storybookStaticDir',
     });
 
     final platform = reader.requireEnum('platform', Platform.byWireName);
+    final command = reader.optionalStringList('command', minItemLength: 1);
     final projectPath = reader.optionalString('projectPath', minLength: 1);
     final storybookStaticDir = reader.optionalString(
       'storybookStaticDir',
@@ -46,6 +49,7 @@ class Adapter {
     }
 
     return Adapter(
+      command: command,
       platform: platform,
       projectPath: projectPath,
       storybookStaticDir: storybookStaticDir,
@@ -59,6 +63,10 @@ class Adapter {
   /// Project root for the Flutter adapter; `null` for other platforms.
   final String? projectPath;
 
+  /// Optional adapter executable override, represented as executable + argv
+  /// tokens to avoid shell parsing rules.
+  final List<String>? command;
+
   /// Built Storybook static dir for the RN adapter; `null` for other
   /// platforms.
   final String? storybookStaticDir;
@@ -66,6 +74,7 @@ class Adapter {
   /// Serializes to a JSON/YAML-encodable map, omitting unset paths.
   Map<String, Object?> toJson() => {
     'platform': platform.wireName,
+    if (command != null) 'command': [...command!],
     if (projectPath != null) 'projectPath': projectPath,
     if (storybookStaticDir != null) 'storybookStaticDir': storybookStaticDir,
   };
@@ -73,13 +82,34 @@ class Adapter {
   @override
   bool operator ==(Object other) =>
       other is Adapter &&
+      _listEquals(other.command, command) &&
       other.platform == platform &&
       other.projectPath == projectPath &&
       other.storybookStaticDir == storybookStaticDir;
 
   @override
-  int get hashCode => Object.hash(platform, projectPath, storybookStaticDir);
+  int get hashCode => Object.hash(
+    platform,
+    Object.hashAll(command ?? const <String>[]),
+    projectPath,
+    storybookStaticDir,
+  );
 
   @override
   String toString() => 'Adapter(platform: ${platform.wireName})';
+}
+
+bool _listEquals<T>(List<T>? a, List<T>? b) {
+  if (identical(a, b)) {
+    return true;
+  }
+  if (a == null || b == null || a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
 }

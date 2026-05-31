@@ -66,6 +66,15 @@
           "type": "string",
           "minLength": 1
         },
+        "command": {
+          "description": "Optional adapter executable override. When omitted, the platform default binary name is used.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "storybookStaticDir": {
           "description": "Path to the built Storybook static dir (react-native adapter).",
           "type": "string",

@@ -104,9 +104,22 @@ void main() {
       expect(error.location, 'adapters[1].projectPath');
     });
 
-    test('invalid storage backend names the field', () {
+    test('command entries must be non-empty strings', () {
       final config = validConfig()
-        ..['storage'] = {'backend': 'gdrive'};
+        ..['adapters'] = [
+          {
+            'platform': 'flutter',
+            'projectPath': './',
+            'command': ['ambient-flutter-capture', ''],
+          },
+        ];
+      final error = expectFormatError(config);
+      expect(error.location, 'adapters[0].command[1]');
+      expect(error.detail, contains('empty'));
+    });
+
+    test('invalid storage backend names the field', () {
+      final config = validConfig()..['storage'] = {'backend': 'gdrive'};
       final error = expectFormatError(config);
       expect(error.location, 'storage.backend');
       expect(error.detail, contains('one of'));
