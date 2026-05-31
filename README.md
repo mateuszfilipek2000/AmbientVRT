@@ -28,6 +28,19 @@ melos run analyze # dart analyze across all packages
 melos run test    # run package tests
 ```
 
+## Standalone binary
+
+```sh
+./tool/build.sh
+./ambient --version
+```
+
+Tag pushes run `.github/workflows/release.yml`, which builds the Linux binary, smoke-tests it in `debian:bookworm-slim`, and publishes it as a GitHub Release asset. To exercise the same workflow locally with `act`, use an artifact directory so the build and smoke-test jobs can share the compiled binary:
+
+```sh
+act workflow_dispatch -W .github/workflows/release.yml --artifact-server-path /tmp/act-artifacts
+```
+
 ## License
 
 [Apache-2.0](LICENSE).
