@@ -25,7 +25,7 @@ CLI command: `ambient` · Dart packages: `ambient_core`, `ambient_cli`, `ambient
 dart pub global activate melos
 melos bootstrap   # resolves the pub workspace
 melos run analyze # dart analyze across all packages
-melos run test    # run package tests
+melos run workspace-test --no-select # run package tests
 ```
 
 ## Standalone binary
@@ -39,6 +39,18 @@ Tag pushes run `.github/workflows/release.yml`, which builds the Linux binary, s
 
 ```sh
 act workflow_dispatch -W .github/workflows/release.yml --artifact-server-path /tmp/act-artifacts
+```
+
+## npm wrapper
+
+The `ambientvrt` npm package is a thin wrapper around the standalone Linux binary. On Linux, `npm install` runs a `postinstall` step that downloads the matching GitHub Release asset for the package version and vendors it inside the package before `ambient` is invoked.
+
+For local and CI validation before a tagged release exists, set `AMBIENT_BINARY_PATH=/path/to/ambient` during `npm ci`; the postinstall script copies that binary into the package instead of downloading from GitHub Releases.
+
+To exercise the GitHub Actions CI workflow locally with `act`, use the same artifact directory so the Linux binary build job can hand its artifact to the Node wrapper smoke test:
+
+```sh
+act -W .github/workflows/ci.yml --artifact-server-path /tmp/act-artifacts
 ```
 
 ## License
