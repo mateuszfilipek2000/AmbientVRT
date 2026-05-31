@@ -5,6 +5,7 @@
 library;
 
 export 'src/baseline/id.dart';
+export 'src/baseline/rename.dart';
 export 'src/compare/compare.dart';
 export 'src/config/adapter.dart';
 export 'src/config/compare_config.dart';
