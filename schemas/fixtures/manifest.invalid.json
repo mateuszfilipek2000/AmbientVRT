@@ -1,0 +1,16 @@
+{
+  "manifestVersion": "1",
+  "entries": [
+    {
+      "id": "",
+      "platform": "swiftui",
+      "width": 0,
+      "height": 240,
+      "dpr": 0,
+      "contentHash": "not-a-real-sha256",
+      "envFingerprint": "ambient/capture-env@sha256:abc",
+      "imagePath": "/absolute/path/shot.png",
+      "extraneous": true
+    }
+  ]
+}

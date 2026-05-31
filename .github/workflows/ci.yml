@@ -13,6 +13,25 @@ permissions:
   contents: read
 
 jobs:
+  schemas:
+    name: Schema validation
+    runs-on: ubuntu-latest
+    # Plain Node image: validating JSON Schema + fixtures needs nothing else.
+    container: node:20-bookworm-slim
+    defaults:
+      run:
+        working-directory: schemas
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      # Compiles both schemas (proving they're valid JSON Schema) and asserts
+      # every valid/invalid fixture behaves as expected.
+      - name: Validate schemas + fixtures
+        run: npm test
+
   dart:
     name: Dart analyze + test
     runs-on: ubuntu-latest
