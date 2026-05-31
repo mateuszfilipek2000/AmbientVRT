@@ -48,6 +48,22 @@ void defineBaselineStorageContractTests({
         orderedEquals(['a-first', _flutterStyleId, 'z-last']),
       );
     });
+
+    test('round-trips the accepted manifest sidecar', () async {
+      await storage.putAcceptedManifest(_acceptedManifest);
+
+      expect(await storage.getAcceptedManifest(), equals(_acceptedManifest));
+    });
+
+    test(
+      'accepted manifest sidecar does not appear in baseline listings',
+      () async {
+        await storage.putBaseline(_flutterStyleId, _pngBytesA);
+        await storage.putAcceptedManifest(_acceptedManifest);
+
+        expect(await storage.listBaselines(), orderedEquals([_flutterStyleId]));
+      },
+    );
   });
 }
 
@@ -79,3 +95,19 @@ final Uint8List _pngBytesB = Uint8List.fromList([
   8,
   7,
 ]);
+final Manifest _acceptedManifest = Manifest(
+  manifestVersion: const ManifestVersion(1, 0),
+  entries: [
+    ManifestEntry(
+      id: _flutterStyleId,
+      platform: Platform.flutter,
+      width: 120,
+      height: 48,
+      dpr: 2,
+      contentHash:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      envFingerprint: 'test-env',
+      imagePath: 'captures/button.png',
+    ),
+  ],
+);
