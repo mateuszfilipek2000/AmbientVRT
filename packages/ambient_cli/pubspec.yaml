@@ -11,7 +11,13 @@ resolution: workspace
 dependencies:
   ambient_core:
     path: ../ambient_core
+  args: ^2.7.0
+
+executables:
+  ambient: ambient
 
 dev_dependencies:
+  crypto: ^3.0.6
+  image: ^4.8.0
   lints: ^6.0.0
   test: ^1.25.0
