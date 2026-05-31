@@ -5,6 +5,7 @@
 library;
 
 export 'src/baseline/id.dart';
+export 'src/compare/compare.dart';
 export 'src/config/adapter.dart';
 export 'src/config/compare_config.dart';
 export 'src/config/config.dart';
@@ -18,7 +19,5 @@ export 'src/manifest/manifest_version.dart';
 export 'src/manifest/platform.dart';
 export 'src/manifest/variant.dart';
 
-/// Marker for the core package version. The manifest model (above) is the
-/// first real surface; the comparator, storage, and report engine land in
-/// later backlog phases.
+/// Marker for the core package version.
 const String ambientCoreVersion = '0.1.0';
