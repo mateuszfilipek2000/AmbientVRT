@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Cancel superseded runs on the same ref to save runner time.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dart:
+    name: Dart analyze + test
+    runs-on: ubuntu-latest
+    # Pinned Dart/Flutter toolchain image (bundles a matching Dart SDK), NOT the
+    # default runner image. The canonical definition lives in
+    # docker/dart-toolchain/Dockerfile, which is FROM this same tag; keep them
+    # in sync. See that Dockerfile for why CI references the base tag directly.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    steps:
+      - uses: actions/checkout@v4
+
+      # The checkout lands owned by a different user than the container's root;
+      # tell git the workspace is trusted so pub/flutter git calls don't bail.
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Toolchain versions
+        run: flutter --version
+
+      # melos re-invokes itself as a bare `melos` for its `exec`-based scripts,
+      # so it must be on PATH. The canonical docker/dart-toolchain image bakes
+      # this in; when running against the base image we activate it here.
+      - name: Activate melos
+        run: |
+          dart pub global activate melos 7.8.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      # Resolve the pub workspace (all three packages, incl. the Flutter one).
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Analyze
+        run: melos analyze
+
+      - name: Test
+        run: melos test
+
+  js:
+    name: JS lint + build
+    runs-on: ubuntu-latest
+    # Pinned Node toolchain image, NOT the default runner image.
+    container: node:20-bookworm-slim
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Smoke-check the bin entrypoint
+        run: node ./bin/ambient.js --version
