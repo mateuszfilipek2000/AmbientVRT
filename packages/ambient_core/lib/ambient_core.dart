@@ -4,6 +4,7 @@
 /// backends, and report generation shared by every capture adapter.
 library;
 
+export 'src/baseline/id.dart';
 export 'src/config/adapter.dart';
 export 'src/config/compare_config.dart';
 export 'src/config/config.dart';
