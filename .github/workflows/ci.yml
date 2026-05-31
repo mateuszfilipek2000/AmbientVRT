@@ -67,7 +67,7 @@ jobs:
         run: melos analyze
 
       - name: Test
-        run: melos test
+        run: melos run workspace-test --no-select
 
   js:
     name: JS lint + build
