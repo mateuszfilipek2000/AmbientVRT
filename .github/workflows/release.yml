@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux-binary:
+    name: Build Linux binary
+    runs-on: ubuntu-latest
+    container: debian:bookworm-slim
+    defaults:
+      run:
+        shell: sh
+    outputs:
+      asset_name: ${{ steps.asset.outputs.asset_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dart SDK
+        env:
+          DART_APT_VERSION: 3.12.1-1
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl gnupg nodejs
+          curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub \
+            | gpg --dearmor >/usr/share/keyrings/dart.gpg
+          echo "deb [signed-by=/usr/share/keyrings/dart.gpg] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main" \
+            > /etc/apt/sources.list.d/dart_stable.list
+          apt-get update
+          apt-get install -y --no-install-recommends "dart=${DART_APT_VERSION}"
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Show toolchain
+        run: dart --version
+
+      - name: Build standalone binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+
+      - name: Derive asset name
+        id: asset
+        run: |
+          case "$(uname -m)" in
+            x86_64) asset_arch=x64 ;;
+            aarch64|arm64) asset_arch=arm64 ;;
+            *) asset_arch=$(uname -m) ;;
+          esac
+          asset_name="ambient-linux-${asset_arch}"
+          cp "$RUNNER_TEMP/ambient" "$RUNNER_TEMP/$asset_name"
+          cp ./tool/smoke_test_binary.sh "$RUNNER_TEMP/smoke_test_binary.sh"
+          chmod +x "$RUNNER_TEMP/$asset_name"
+          chmod +x "$RUNNER_TEMP/smoke_test_binary.sh"
+          echo "asset_name=$asset_name" >> "$GITHUB_OUTPUT"
+
+      # Local `act` runs need `--artifact-server-path <dir>` so this artifact can
+      # be shared with the Debian smoke-test job.
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.asset.outputs.asset_name }}
+          path: |
+            ${{ runner.temp }}/${{ steps.asset.outputs.asset_name }}
+            ${{ runner.temp }}/smoke_test_binary.sh
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke-test-linux-binary:
+    name: Smoke-test Linux binary
+    needs: build-linux-binary
+    runs-on: ubuntu-latest
+    container: debian:bookworm-slim
+    defaults:
+      run:
+        shell: sh
+    steps:
+      - name: Install Node.js for artifact actions
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-linux-binary.outputs.asset_name }}
+          path: ${{ runner.temp }}/release
+
+      - name: Run standalone binary smoke test
+        run: |
+          binary_path="$RUNNER_TEMP/release/${{ needs.build-linux-binary.outputs.asset_name }}"
+          smoke_script="$RUNNER_TEMP/release/smoke_test_binary.sh"
+          chmod +x "$binary_path"
+          chmod +x "$smoke_script"
+          "$smoke_script" "$binary_path"
+
+  publish-release:
+    name: Publish GitHub release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build-linux-binary
+      - smoke-test-linux-binary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build-linux-binary.outputs.asset_name }}
+          path: ${{ runner.temp }}/release
+
+      - name: Create or update GitHub release
+        run: |
+          asset_name='${{ needs.build-linux-binary.outputs.asset_name }}'
+          asset_path="$RUNNER_TEMP/release/$asset_name"
+          tag_name='${{ github.ref_name }}'
+
+          if gh release view "$tag_name" >/dev/null 2>&1; then
+            gh release upload "$tag_name" "$asset_path#$asset_name" --clobber
+          else
+            gh release create \
+              "$tag_name" \
+              "$asset_path#$asset_name" \
+              --title "$tag_name" \
+              --notes "Standalone Linux ambient binary built from $tag_name."
+          fi
