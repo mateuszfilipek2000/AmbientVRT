@@ -6,14 +6,16 @@ import 'baseline_storage.dart';
 
 /// Filesystem-backed baseline storage rooted at a single directory.
 final class LocalStorageBackend implements BaselineStorage {
-  LocalStorageBackend({required String directoryPath})
-    : _rootDirectory = Directory(directoryPath);
+  LocalStorageBackend({required String directoryPath, String? defaultBranch})
+    : _rootDirectory = Directory(directoryPath),
+      _defaultBranch = _normalizeBranch(defaultBranch);
 
   final Directory _rootDirectory;
+  final String? _defaultBranch;
 
   @override
   Future<Uint8List?> getBaseline(String id, {String? branch}) async {
-    final file = File(_pathForId(id));
+    final file = File(_pathForId(id, branch: branch));
     if (!await file.exists()) {
       return null;
     }
@@ -23,12 +25,13 @@ final class LocalStorageBackend implements BaselineStorage {
 
   @override
   Future<List<String>> listBaselines({String? branch}) async {
-    if (!await _rootDirectory.exists()) {
+    final directory = _directoryForBranch(branch);
+    if (!await directory.exists()) {
       return const [];
     }
 
     final ids = <String>[];
-    await for (final entity in _rootDirectory.list(followLinks: false)) {
+    await for (final entity in directory.list(followLinks: false)) {
       if (entity is! File) {
         continue;
       }
@@ -51,7 +54,7 @@ final class LocalStorageBackend implements BaselineStorage {
 
   @override
   Future<Manifest?> getAcceptedManifest({String? branch}) async {
-    final file = File(_acceptedManifestPath);
+    final file = File(_acceptedManifestPath(branch: branch));
     if (!await file.exists()) {
       return null;
     }
@@ -65,37 +68,44 @@ final class LocalStorageBackend implements BaselineStorage {
     Uint8List pngBytes, {
     String? branch,
   }) async {
-    await _rootDirectory.create(recursive: true);
+    final directory = _directoryForBranch(branch);
+    await directory.create(recursive: true);
 
     final encodedId = _encodedId(id);
     final tempFile = File(
       _filePathForName(
+        directory,
         '.$encodedId.${DateTime.now().microsecondsSinceEpoch}.tmp',
       ),
     );
     await tempFile.writeAsBytes(pngBytes, flush: true);
-    await tempFile.rename(_pathForId(id));
+    await tempFile.rename(_pathForId(id, branch: branch));
   }
 
   @override
   Future<void> putAcceptedManifest(Manifest manifest, {String? branch}) async {
-    await _rootDirectory.create(recursive: true);
+    final directory = _directoryForBranch(branch);
+    await directory.create(recursive: true);
 
     final tempFile = File(
       _filePathForName(
+        directory,
         '.$_acceptedManifestFileName.${DateTime.now().microsecondsSinceEpoch}.tmp',
       ),
     );
     await tempFile.writeAsString(manifest.toJsonString(), flush: true);
-    await tempFile.rename(_acceptedManifestPath);
+    await tempFile.rename(_acceptedManifestPath(branch: branch));
   }
 
-  String get _acceptedManifestPath =>
-      _filePathForName(_acceptedManifestFileName);
+  String _acceptedManifestPath({String? branch}) =>
+      _filePathForName(_directoryForBranch(branch), _acceptedManifestFileName);
 
-  String _pathForId(String id) {
+  String _pathForId(String id, {String? branch}) {
     final encodedId = _encodedId(id);
-    return _filePathForName('$encodedId$_baselineExtension');
+    return _filePathForName(
+      _directoryForBranch(branch),
+      '$encodedId$_baselineExtension',
+    );
   }
 
   String _encodedId(String id) {
@@ -106,14 +116,39 @@ final class LocalStorageBackend implements BaselineStorage {
     return Uri.encodeComponent(id);
   }
 
-  String _filePathForName(String fileName) {
-    final separator = Platform.pathSeparator;
-    if (_rootDirectory.path.endsWith(separator)) {
-      return '${_rootDirectory.path}$fileName';
+  Directory _directoryForBranch(String? branch) {
+    final normalizedBranch = _normalizeBranch(branch);
+    if (normalizedBranch == null || normalizedBranch == _defaultBranch) {
+      return _rootDirectory;
     }
 
-    return '${_rootDirectory.path}$separator$fileName';
+    return Directory(
+      _joinPath(
+        _joinPath(_rootDirectory.path, 'branches'),
+        Uri.encodeComponent(normalizedBranch),
+      ),
+    );
   }
+
+  String _filePathForName(Directory directory, String fileName) =>
+      _joinPath(directory.path, fileName);
+}
+
+String? _normalizeBranch(String? branch) {
+  if (branch == null) {
+    return null;
+  }
+  final trimmed = branch.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+String _joinPath(String directoryPath, String fileName) {
+  final separator = Platform.pathSeparator;
+  if (directoryPath.endsWith(separator)) {
+    return '$directoryPath$fileName';
+  }
+
+  return '$directoryPath$separator$fileName';
 }
 
 const String _baselineExtension = '.png';

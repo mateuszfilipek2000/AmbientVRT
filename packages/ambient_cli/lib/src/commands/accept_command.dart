@@ -4,6 +4,7 @@ import 'package:ambient_core/ambient_core.dart';
 import 'package:args/args.dart';
 
 import '../ambient_environment.dart';
+import '../branch_context.dart';
 import '../cli_exception.dart';
 import '../orchestrator/capture_orchestrator.dart';
 import 'ambient_command.dart';
@@ -43,7 +44,12 @@ final class AcceptCommand extends AmbientCommand {
 
   @override
   Future<int> run(ArgResults results, AmbientEnvironment environment) async {
-    final branch = results.option('branch');
+    final explicitBranch = results.option('branch');
+    final resolvedBranches = await resolveBaselineBranchContext(
+      environment: environment,
+      requestedCompareBranch: explicitBranch,
+      requestedWriteBranch: explicitBranch,
+    );
     final requestedRunDirectory = results.option('run-dir');
     final manifestPath = results.option('manifest');
     if (requestedRunDirectory == null && manifestPath != null) {
@@ -75,7 +81,7 @@ final class AcceptCommand extends AmbientCommand {
     final storage = createStorage(
       loadedConfig: loadedConfig,
       environment: environment,
-      branch: branch,
+      defaultBranch: resolvedBranches.defaultBranch,
     );
     final runResult = await compareRun(
       manifest: manifest,
@@ -83,7 +89,7 @@ final class AcceptCommand extends AmbientCommand {
       options: CompareRunOptions(
         runDirectoryPath: runDirectoryPath,
         compareOptions: buildCompareOptions(loadedConfig.config),
-        branch: branch,
+        branch: resolvedBranches.compareBranch,
         canonicalEnv: loadedConfig.config.canonicalEnv,
       ),
     );
@@ -98,7 +104,7 @@ final class AcceptCommand extends AmbientCommand {
         runResult,
         storage: storage,
         ids: idsToAccept,
-        branch: branch,
+        branch: resolvedBranches.writeBranch,
       );
 
       environment.writeOut(

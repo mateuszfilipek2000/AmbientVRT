@@ -38,6 +38,41 @@ void defineBaselineStorageContractTests({
       );
     });
 
+    test(
+      'isolates branch-scoped baselines from other branches and root',
+      () async {
+        await storage.putBaseline(
+          _flutterStyleId,
+          _pngBytesA,
+          branch: 'feature/widget-refresh',
+        );
+
+        expect(
+          await storage.getBaseline(
+            _flutterStyleId,
+            branch: 'feature/widget-refresh',
+          ),
+          orderedEquals(_pngBytesA),
+        );
+        expect(
+          await storage.getBaseline(
+            _flutterStyleId,
+            branch: 'feature/other-change',
+          ),
+          isNull,
+        );
+        expect(await storage.getBaseline(_flutterStyleId), isNull);
+        expect(
+          await storage.listBaselines(branch: 'feature/widget-refresh'),
+          orderedEquals([_flutterStyleId]),
+        );
+        expect(
+          await storage.listBaselines(branch: 'feature/other-change'),
+          isEmpty,
+        );
+      },
+    );
+
     test('lists stored baseline IDs in sorted order', () async {
       await storage.putBaseline('z-last', _pngBytesA);
       await storage.putBaseline(_flutterStyleId, _pngBytesB);
@@ -54,6 +89,26 @@ void defineBaselineStorageContractTests({
 
       expect(await storage.getAcceptedManifest(), equals(_acceptedManifest));
     });
+
+    test(
+      'isolates branch-scoped accepted manifests from other branches and root',
+      () async {
+        await storage.putAcceptedManifest(
+          _acceptedManifest,
+          branch: 'feature/widget-refresh',
+        );
+
+        expect(
+          await storage.getAcceptedManifest(branch: 'feature/widget-refresh'),
+          equals(_acceptedManifest),
+        );
+        expect(
+          await storage.getAcceptedManifest(branch: 'feature/other-change'),
+          isNull,
+        );
+        expect(await storage.getAcceptedManifest(), isNull);
+      },
+    );
 
     test(
       'accepted manifest sidecar does not appear in baseline listings',
