@@ -114,12 +114,23 @@ jobs:
       - name: Analyze
         run: melos analyze
 
-      - name: Test
+      - name: Test (Dart packages)
         run: melos run workspace-test --no-select
+
+      # ambient_flutter's adapter tests render the example previews, so the
+      # example needs its own resolved deps and the tests run via `flutter test`.
+      - name: Resolve Flutter example deps
+        run: flutter pub get
+        working-directory: examples/flutter-previews
+
+      - name: Flutter adapter tests
+        run: flutter test
+        working-directory: packages/ambient_flutter
 
   js:
     name: JS build + test + lint
     needs: linux-binary
+    if: ${{ github.actor != 'nektos/act' }}
     runs-on: ubuntu-latest
     # Pinned Node toolchain image, NOT the default runner image.
     container: node:20-bookworm-slim
@@ -138,6 +149,52 @@ jobs:
       - name: Install
         env:
           AMBIENT_BINARY_PATH: ${{ runner.temp }}/ambient-binary/${{ needs.linux-binary.outputs.artifact_name }}
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Smoke-check the installed wrapper
+        run: node ./bin/ambient.js --version
+
+  js-act:
+    name: JS build + test + lint (act)
+    if: ${{ github.actor == 'nektos/act' }}
+    runs-on: ubuntu-latest
+    # `act` currently struggles with artifact download in this workflow, so for
+    # local validation we keep the same checks in one job and hand npm a binary
+    # built in the same container.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+        working-directory: .
+
+      - name: Install Node.js
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates nodejs npm
+          rm -rf /var/lib/apt/lists/*
+        working-directory: .
+
+      - name: Build standalone binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+        working-directory: .
+
+      - name: Install
+        env:
+          AMBIENT_BINARY_PATH: ${{ runner.temp }}/ambient
         run: npm ci
 
       - name: Build
