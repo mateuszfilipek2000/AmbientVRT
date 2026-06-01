@@ -1,0 +1,26 @@
+# AmbientVRT config for the React Native / Storybook example.
+#
+# The capture adapter is the npm package's `ambient-rn-capture` entry. Here we
+# point `command` straight at the local build (`js/bin/ambient-rn-capture.js`)
+# so the example runs against the in-repo adapter without a published install.
+# A published consumer would instead just rely on the default `ambient-rn-capture`
+# binary being on PATH.
+adapters:
+  - platform: react-native
+    storybookStaticDir: ./storybook-static
+    command: [node, ../../js/bin/ambient-rn-capture.js]
+
+storage:
+  backend: local
+  path: .ambient/baselines
+
+compare:
+  threshold: 0.1
+
+# Drive the two theme variants. The adapter maps each to a Storybook `theme`
+# global and records it on the manifest `brightness` axis.
+variants: [light, dark]
+
+# A fixed fingerprint keeps re-captures on the same machine byte-identical for
+# the determinism check; CI would point this at the canonical capture-env image.
+canonicalEnv: ambient-rn-local
