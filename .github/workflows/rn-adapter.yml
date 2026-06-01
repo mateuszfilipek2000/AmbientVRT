@@ -1,0 +1,89 @@
+name: RN adapter
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: rn-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rn-adapter:
+    name: RN capture adapter + full loop
+    runs-on: ubuntu-latest
+    # Self-contained on the pinned Dart/Flutter toolchain image so the same job
+    # both builds the shared `ambient` core binary and runs the Node/Playwright
+    # capture path. One job (no cross-job artifacts) keeps local `act` runs
+    # working — see the js-act job in ci.yml for the same rationale.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Build shared ambient binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+
+      # Install Node from NodeSource rather than actions/setup-node: the Flutter
+      # toolchain image ships no Node, and local `act` can't inject one to run a
+      # JS action. A shell install works both under `act` and on real runners.
+      # (Storybook 10 / Vite 7 need Node 20+, so the image's apt Node 18 won't do.)
+      - name: Install Node.js 20
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y --no-install-recommends nodejs
+          rm -rf /var/lib/apt/lists/*
+          node --version && npm --version
+
+      # Build + verify the npm adapter package. The built core binary doubles
+      # as the postinstall source so `npm ci` doesn't try to fetch a release.
+      - name: Install npm package
+        working-directory: js
+        env:
+          AMBIENT_BINARY_PATH: ${{ runner.temp }}/ambient
+        run: npm ci
+
+      - name: Build npm package
+        working-directory: js
+        run: npm run build
+
+      - name: Lint npm package
+        working-directory: js
+        run: npm run lint
+
+      - name: Unit tests
+        working-directory: js
+        run: npm test
+
+      - name: Install Playwright Chromium + system deps
+        working-directory: js
+        run: npx playwright install --with-deps chromium
+
+      # The full-capture e2e validates its manifest against the real JSON Schema
+      # using the schemas package's ajv install.
+      - name: Install schema validator deps
+        working-directory: schemas
+        run: npm ci
+
+      - name: Install example dependencies
+        working-directory: examples/rn-storybook
+        run: npm ci
+
+      - name: Build example Storybook
+        working-directory: examples/rn-storybook
+        run: npm run build-storybook
+
+      # Capture + manifest + determinism tests, plus the full `ambient test`
+      # loop against the shared core (AMBIENT_BIN gates the loop test in).
+      - name: Capture + full-loop e2e
+        working-directory: js
+        env:
+          AMBIENT_BIN: ${{ runner.temp }}/ambient
+        run: npm run test:e2e
