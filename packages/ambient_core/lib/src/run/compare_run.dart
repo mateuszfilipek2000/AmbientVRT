@@ -82,6 +82,9 @@ Future<CompareRunResult> compareRun({
         candidatePng: candidatePng,
         candidateImagePath: candidateImagePath,
         probableRename: probableRename,
+        isCanonicalEnv:
+            options.canonicalEnv == null ||
+            entry.envFingerprint == options.canonicalEnv,
         comparison: options.comparator.compare(
           baselinePng: baselinePng,
           candidatePng: candidatePng,
@@ -97,6 +100,7 @@ Future<CompareRunResult> compareRun({
     renameDetection: renameDetection,
     snapshots: snapshots,
     summary: CompareRunSummary.fromSnapshots(snapshots),
+    canonicalEnv: options.canonicalEnv,
   );
 }
 

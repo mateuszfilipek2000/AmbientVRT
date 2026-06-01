@@ -1,0 +1,79 @@
+name: Capture-env
+
+# Validates backlog T6.1: the canonical capture-env images and the core's
+# non-canonical-fingerprint enforcement. The full "capture inside the image"
+# check is manual (see docker/capture-env/README.md); here we lint the image
+# definitions and prove the core flags non-canonical captures.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: capture-env-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dockerfiles:
+    name: Lint capture-env Dockerfiles
+    runs-on: ubuntu-latest
+    # Plain Node image so actions/checkout works (and matches the schemas job).
+    # hadolint is a single static binary we drop in via a shell step — no need
+    # for a JS action that local `act` can't bootstrap.
+    container: node:20-bookworm-slim
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install hadolint
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl
+          rm -rf /var/lib/apt/lists/*
+          case "$(uname -m)" in
+            x86_64) arch=x86_64 ;;
+            aarch64 | arm64) arch=arm64 ;;
+            *) arch=$(uname -m) ;;
+          esac
+          curl -fsSL -o /usr/local/bin/hadolint \
+            "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-${arch}"
+          chmod +x /usr/local/bin/hadolint
+          hadolint --version
+
+      # Reads the repo-root .hadolint.yaml for ignored rules.
+      - name: Lint Dockerfiles
+        run: |
+          hadolint docker/capture-env/flutter/Dockerfile
+          hadolint docker/capture-env/rn/Dockerfile
+
+  fingerprint:
+    name: Core fingerprint enforcement
+    runs-on: ubuntu-latest
+    # Pinned Dart/Flutter toolchain image: the pub workspace includes the
+    # Flutter package, so resolving it needs the Flutter SDK. Matches ci.yml.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Activate melos
+        run: |
+          dart pub global activate melos 7.8.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      # The canonical-env check lives in ambient_core (compareRun) and is surfaced
+      # by the ambient_cli `test`/`accept` commands. Running both suites covers
+      # the flagging logic and the non-blocking CLI warning end-to-end.
+      - name: Core run + fingerprint tests
+        run: dart test
+        working-directory: packages/ambient_core
+
+      - name: CLI canonical-env warning tests
+        run: dart test
+        working-directory: packages/ambient_cli

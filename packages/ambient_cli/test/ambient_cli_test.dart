@@ -91,6 +91,59 @@ void main() {
     });
 
     test(
+      'test flags captures taken outside the configured canonical env',
+      () async {
+        final configFile = File.fromUri(
+          workspaceDirectory.uri.resolve('ambient.config.yaml'),
+        );
+        await configFile.writeAsString('''adapters:
+  - platform: flutter
+    projectPath: ./
+storage:
+  backend: local
+  path: ${_yamlQuote(storageDirectory.path)}
+compare:
+  threshold: 0.1
+canonicalEnv: ambient/capture-env@sha256:canonical
+''', flush: true);
+        await _writeRunFixture(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: _solidPng(
+                width: 3,
+                height: 2,
+                red: 20,
+                green: 40,
+                blue: 60,
+              ),
+            ),
+          ],
+        );
+
+        final stderr = StringBuffer();
+        // The fixture stamps `test-env`, which differs from the configured
+        // canonicalEnv, so the run must warn (non-blocking: the exit code is
+        // still driven by the `new` verdict).
+        final exitCode = await runAmbient(
+          ['test', '--run-dir', runDirectory.path],
+          stdout: StringBuffer(),
+          stderr: stderr,
+          currentDirectoryPath: workspaceDirectory.path,
+        );
+
+        expect(exitCode, AmbientExitCode.comparisonFailed);
+        expect(
+          stderr.toString(),
+          contains('outside the canonical capture-env'),
+        );
+        expect(stderr.toString(), contains('button-primary'));
+      },
+    );
+
+    test(
       'test and accept enforce exit codes across new, pass, and changed runs',
       () async {
         await _writeRunDirConfig(workspaceDirectory, storageDirectory.path);
@@ -235,10 +288,11 @@ void main() {
         );
         expect(contractWorkingDirectory, mockAdapterRealPath);
         expect(contract['variants'], ['light', 'dark']);
-        expect(
-          contract,
-          containsPair('canonicalEnv', 'ambient/mock@sha256:1234'),
-        );
+        // The orchestrator does NOT forward the configured canonicalEnv to the
+        // adapter: the adapter stamps the *actual* capture env (AMBIENT_CAPTURE_ENV
+        // or a toolchain fallback); canonicalEnv is the *expected* value the core
+        // checks against (backlog T6.1).
+        expect(contract, containsPair('canonicalEnv', isNull));
 
         final mergedManifest = Manifest.fromJsonString(
           await File.fromUri(
