@@ -80,20 +80,16 @@ Future<Manifest> loadManifest({
 BaselineStorage createStorage({
   required LoadedConfig loadedConfig,
   required AmbientEnvironment environment,
-  String? branch,
+  String? defaultBranch,
 }) {
   switch (loadedConfig.config.storage.backend) {
     case StorageBackend.local:
-      if (branch != null) {
-        environment.writeErr(
-          'Note: --branch is currently ignored by the local storage backend.',
-        );
-      }
       return LocalStorageBackend(
         directoryPath: environment.resolveFromDirectory(
           loadedConfig.directoryPath,
           loadedConfig.config.storage.path!,
         ),
+        defaultBranch: defaultBranch,
       );
     case StorageBackend.s3:
       throw const AmbientCliException(

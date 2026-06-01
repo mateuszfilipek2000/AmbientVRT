@@ -5,23 +5,29 @@ final class AmbientEnvironment {
     required this.stdout,
     required this.stderr,
     required this.currentDirectoryPath,
+    required this.environmentVariables,
   });
 
   factory AmbientEnvironment.system({
     StringSink? stdout,
     StringSink? stderr,
     String? currentDirectoryPath,
+    Map<String, String>? environmentVariables,
   }) {
     return AmbientEnvironment(
       stdout: stdout ?? _IoStringSink(io.stdout),
       stderr: stderr ?? _IoStringSink(io.stderr),
       currentDirectoryPath: currentDirectoryPath ?? io.Directory.current.path,
+      environmentVariables: environmentVariables == null
+          ? Map.unmodifiable(io.Platform.environment)
+          : Map.unmodifiable(environmentVariables),
     );
   }
 
   final StringSink stdout;
   final StringSink stderr;
   final String currentDirectoryPath;
+  final Map<String, String> environmentVariables;
 
   void writeOut(String message) => stdout.writeln(message);
 
