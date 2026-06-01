@@ -93,6 +93,28 @@ PNG files under that same directory.
 | --- | --- | --- | --- |
 | `backend` | enum `local` \| `s3` | yes | — |
 | `path` | string | required **when** `backend: local` | Directory for local baselines. |
+| `s3` | s3 object | required **when** `backend: s3` | Connection settings for the S3-compatible backend. |
+
+#### `storage.s3`
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `endpoint` | string | yes | Host or IP of the S3 endpoint (e.g. `minio.lan`, `s3.amazonaws.com`). |
+| `bucket` | string | yes | Bucket baselines are stored in. |
+| `port` | integer `1..65535` | no | Omit to imply from `useSSL` (443/80). |
+| `useSSL` | boolean | no | Connect over HTTPS. Default `true`. |
+| `region` | string | no | Region override (e.g. `us-east-1`). |
+| `prefix` | string | no | Key prefix rooting every object under a bucket sub-path. |
+| `pathStyle` | boolean | no | Force path-style addressing. Omit to let the client decide (path style is used automatically for non-AWS endpoints like MinIO). |
+| `accessKeyEnv` | string | no | Name of the env var holding the access key. Default `AMBIENT_S3_ACCESS_KEY`. |
+| `secretKeyEnv` | string | no | Name of the env var holding the secret key. Default `AMBIENT_S3_SECRET_KEY`. |
+
+Credentials are **never** stored in the config: they are read at runtime from
+the environment variables named by `accessKeyEnv`/`secretKeyEnv`, so secrets stay
+out of version control. The S3 backend keys baselines exactly like the local
+backend (`<id>.png` in the namespace, `branches/<branch>/<id>.png` for non-default
+branches, plus the accepted-manifest sidecar), so the two pass the same storage
+contract suite.
 
 `additionalProperties` is **false** throughout, and the conditional `required`
 rules (via `if`/`then`) mean, e.g., a `flutter` adapter missing `projectPath`
