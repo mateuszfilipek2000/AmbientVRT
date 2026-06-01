@@ -1,0 +1,109 @@
+name: AmbientVRT visual test
+
+# Reusable CI Action (backlog T6.4): run `ambient test` for a Flutter previews
+# example inside the canonical capture-env container, upload the HTML report and
+# diff PNGs as an artifact, and let the job's pass/fail be the PR commit status.
+#
+# Callers pass the example directory and the canonical-env fingerprint; see
+# .github/workflows/ambient-flutter.yml. The companion ambient-accept.yml
+# re-blesses baselines on demand.
+on:
+  workflow_call:
+    inputs:
+      example-path:
+        description: Directory containing the example's ambient.config.yaml.
+        required: true
+        type: string
+      config:
+        description: Config filename within example-path.
+        required: false
+        default: ambient.config.yaml
+        type: string
+      canonical-env:
+        description: >-
+          Value stamped into AMBIENT_CAPTURE_ENV so in-container captures match
+          the config's canonicalEnv (emulates running inside the canonical image,
+          which is the authoritative fingerprint source — see
+          docker/capture-env/README.md).
+        required: false
+        default: ''
+        type: string
+      artifact-name:
+        description: Name of the uploaded report artifact.
+        required: false
+        default: ambient-report
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ambient-test:
+    name: ambient test
+    runs-on: ubuntu-latest
+    # Canonical Flutter capture-env: the pinned SDK plus the example's bundled
+    # fonts make re-captures byte-identical to the committed baselines. Same image
+    # the rest of CI uses (docker/dart-toolchain and docker/capture-env/flutter are
+    # both FROM this tag); keep them in sync.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    env:
+      AMBIENT_CAPTURE_ENV: ${{ inputs.canonical-env }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The checkout lands owned by a different user than the container's root;
+      # trust the workspace so pub/flutter/git calls don't bail.
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      # melos resolves the pub workspace (incl. the Flutter package) so the capture
+      # adapter (`dart run ambient_flutter:capture`) can run. It must be on PATH
+      # because melos re-invokes itself for its exec-based scripts.
+      - name: Activate melos
+        run: |
+          dart pub global activate melos 7.8.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      # Exercise the compiled, standalone binary that real consumers run, not
+      # `dart run`, so the Action mirrors distribution.
+      - name: Build shared ambient binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+
+      - name: Resolve example deps
+        run: flutter pub get
+        working-directory: ${{ inputs.example-path }}
+
+      # The orchestrator captures the previews (flutter test -> PNGs), compares
+      # them against the committed baselines, and writes report.html + diff PNGs.
+      # A nonzero exit on changed / un-accepted-new snapshots is the red status.
+      - name: ambient test
+        working-directory: ${{ inputs.example-path }}
+        run: |
+          "$RUNNER_TEMP/ambient" test \
+            --config "${{ inputs.config }}" \
+            --report-dir .ambient/report
+
+      # upload-artifact is a JS action; the Flutter image ships no Node, and local
+      # `act` can't inject one, so install a minimal Node first (real runners are
+      # unaffected). See .github/workflows/ci.yml for the same pattern.
+      - name: Install Node.js for artifact actions
+        if: always()
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates nodejs
+          rm -rf /var/lib/apt/lists/*
+
+      # Upload even on failure so a red run still surfaces the visible diff
+      # artifact (report.html references the baseline/candidate/diff PNGs next to
+      # it). Local `act` needs `--artifact-server-path <dir>` for this to land.
+      - name: Upload report + diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.example-path }}/.ambient/report
+          if-no-files-found: warn
+          retention-days: 14

@@ -71,6 +71,21 @@ The `.github/workflows/rn-adapter.yml` workflow builds the shared binary, the np
 act -W .github/workflows/rn-adapter.yml
 ```
 
+## PR visual gate
+
+`.github/workflows/ambient.yml` is a reusable workflow that runs `ambient test`
+for an example inside the canonical Flutter container, fails the check on any
+unaccepted visual change, and uploads `report.html` plus the baseline/candidate/diff
+PNGs as an artifact. `.github/workflows/ambient-flutter.yml` calls it on every push
+and PR over `examples/flutter-previews` (whose baselines are committed under
+`.ambient/baselines/`). Adding the `ambient-accept` label to a PR re-blesses the
+baselines via `.github/workflows/ambient-accept.yml`. See
+[`docs/ci-action.md`](docs/ci-action.md) for the full PR loop and `act` commands.
+
+```sh
+act push -W .github/workflows/ambient-flutter.yml --artifact-server-path /tmp/act-artifacts
+```
+
 ## License
 
 [Apache-2.0](LICENSE).
