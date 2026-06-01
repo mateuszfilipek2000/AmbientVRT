@@ -113,6 +113,58 @@
           "description": "Directory for the local backend's baselines.",
           "type": "string",
           "minLength": 1
+        },
+        "s3": {
+          "description": "Connection settings for the s3 (S3-compatible) backend. Credentials are NOT stored here; they are read from the environment variables named by accessKeyEnv/secretKeyEnv.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "bucket"],
+          "properties": {
+            "endpoint": {
+              "description": "Host name or IP of the S3 endpoint (e.g. minio.lan, s3.amazonaws.com).",
+              "type": "string",
+              "minLength": 1
+            },
+            "bucket": {
+              "description": "Bucket baselines are stored in.",
+              "type": "string",
+              "minLength": 1
+            },
+            "port": {
+              "description": "TCP port; omit to imply from useSSL (443/80).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "useSSL": {
+              "description": "Connect over HTTPS. Default true.",
+              "type": "boolean"
+            },
+            "region": {
+              "description": "Optional region override (e.g. us-east-1).",
+              "type": "string",
+              "minLength": 1
+            },
+            "prefix": {
+              "description": "Optional key prefix rooting every object under a bucket sub-path.",
+              "type": "string",
+              "minLength": 1
+            },
+            "pathStyle": {
+              "description": "Force path-style addressing; omit to let the client decide (path style is used automatically for non-AWS endpoints like MinIO).",
+              "type": "boolean"
+            },
+            "accessKeyEnv": {
+              "description": "Name of the env var holding the access key. Default AMBIENT_S3_ACCESS_KEY.",
+              "type": "string",
+              "minLength": 1
+            },
+            "secretKeyEnv": {
+              "description": "Name of the env var holding the secret key. Default AMBIENT_S3_SECRET_KEY.",
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       },
       "allOf": [
@@ -122,6 +174,15 @@
           },
           "then": {
             "required": ["path"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "backend": { "const": "s3" } },
+            "required": ["backend"]
+          },
+          "then": {
+            "required": ["s3"]
           }
         }
       ]

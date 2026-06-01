@@ -59,15 +59,82 @@ adapters:
     storybookStaticDir: ./storybook-static
 storage:
   backend: s3
+  s3:
+    endpoint: minio.lan
+    bucket: ambient-baselines
 ''');
 
       expect(config.adapters.single.platform, Platform.reactNative);
       expect(config.storage.backend, StorageBackend.s3);
       expect(config.storage.path, isNull);
+      final s3 = config.storage.s3!;
+      expect(s3.endpoint, 'minio.lan');
+      expect(s3.bucket, 'ambient-baselines');
+      expect(s3.port, isNull);
+      expect(s3.useSSL, isTrue);
+      expect(s3.region, isNull);
+      expect(s3.prefix, isNull);
+      expect(s3.pathStyle, isNull);
+      expect(s3.accessKeyEnv, 'AMBIENT_S3_ACCESS_KEY');
+      expect(s3.secretKeyEnv, 'AMBIENT_S3_SECRET_KEY');
       expect(config.compare, isNull);
       expect(config.variants, isEmpty);
       expect(config.canonicalEnv, isNull);
       expect(config.adapters.single.command, isNull);
+    });
+
+    test('a full s3 config maps every connection field', () {
+      final config = Config.fromYamlString('''
+adapters:
+  - platform: react-native
+    storybookStaticDir: ./storybook-static
+storage:
+  backend: s3
+  s3:
+    endpoint: 10.0.0.5
+    bucket: ambient-baselines
+    port: 9000
+    useSSL: false
+    region: us-east-1
+    prefix: baselines/
+    pathStyle: true
+    accessKeyEnv: MINIO_KEY
+    secretKeyEnv: MINIO_SECRET
+''');
+
+      final s3 = config.storage.s3!;
+      expect(s3.endpoint, '10.0.0.5');
+      expect(s3.bucket, 'ambient-baselines');
+      expect(s3.port, 9000);
+      expect(s3.useSSL, isFalse);
+      expect(s3.region, 'us-east-1');
+      expect(s3.prefix, 'baselines/');
+      expect(s3.pathStyle, isTrue);
+      expect(s3.accessKeyEnv, 'MINIO_KEY');
+      expect(s3.secretKeyEnv, 'MINIO_SECRET');
+    });
+
+    test('round-trips a parsed s3 config back through toJson()', () {
+      final source = '''
+adapters:
+  - platform: react-native
+    storybookStaticDir: ./storybook-static
+storage:
+  backend: s3
+  s3:
+    endpoint: 10.0.0.5
+    bucket: ambient-baselines
+    port: 9000
+    useSSL: false
+    region: us-east-1
+    prefix: baselines/
+    pathStyle: true
+    accessKeyEnv: MINIO_KEY
+    secretKeyEnv: MINIO_SECRET
+''';
+      final config = Config.fromYamlString(source);
+      final reparsed = Config.fromYaml(config.toJson());
+      expect(reparsed, equals(config));
     });
 
     test('an empty compare section yields default thresholds', () {
