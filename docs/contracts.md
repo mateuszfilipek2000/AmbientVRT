@@ -73,7 +73,15 @@ For every adapter invocation, AmbientVRT appends these arguments:
 - `--project-path <dir>` — for `platform: flutter`.
 - `--storybook-static-dir <dir>` — for `platform: react-native`.
 - `--variant <value>` — repeated once per configured variant.
-- `--canonical-env <value>` — when the config sets `canonicalEnv`.
+
+The orchestrator does **not** forward `canonicalEnv`. Adapters record the
+*actual* environment they ran in as each entry's `envFingerprint`, resolved in
+priority order: the `AMBIENT_CAPTURE_ENV` variable baked into the canonical
+capture-env image (see [`docker/capture-env`](../docker/capture-env/README.md)),
+then an explicit `--canonical-env <value>` override (accepted but not passed by
+the orchestrator), then a best-effort toolchain fingerprint. The configured
+`canonicalEnv` is the *expected* value the core checks each `envFingerprint`
+against, flagging mismatches as non-canonical captures (a non-blocking warning).
 
 The adapter must exit non-zero on failure. On success it must emit a
 schema-valid `manifest.json` in `--out-dir`, with every `imagePath` pointing to

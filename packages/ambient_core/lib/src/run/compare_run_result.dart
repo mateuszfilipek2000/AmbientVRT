@@ -14,6 +14,7 @@ class SnapshotRunResult {
     this.baselineEntry,
     this.baselinePng,
     this.probableRename,
+    this.isCanonicalEnv = true,
   });
 
   final ManifestEntry entry;
@@ -23,6 +24,10 @@ class SnapshotRunResult {
   final ManifestEntry? baselineEntry;
   final Uint8List? baselinePng;
   final ProbableRename? probableRename;
+
+  /// Whether this snapshot's `envFingerprint` matched the configured canonical
+  /// capture-env. `true` when the run had no canonical env to check against.
+  final bool isCanonicalEnv;
 
   String get id => entry.id;
 
@@ -93,6 +98,7 @@ class CompareRunResult {
     required this.summary,
     this.previousAcceptedManifest,
     this.renameDetection = const RenameDetectionResult(),
+    this.canonicalEnv,
   }) : snapshots = List.unmodifiable(snapshots);
 
   final Manifest manifest;
@@ -101,5 +107,20 @@ class CompareRunResult {
   final Manifest? previousAcceptedManifest;
   final RenameDetectionResult renameDetection;
 
+  /// The canonical capture-env fingerprint the run was checked against, or
+  /// `null` when the project declared none.
+  final String? canonicalEnv;
+
   List<ProbableRename> get probableRenames => renameDetection.probableRenames;
+
+  /// Snapshots whose `envFingerprint` did not match [canonicalEnv]. Empty when
+  /// no canonical env was configured.
+  List<SnapshotRunResult> get nonCanonicalCaptures => [
+    for (final snapshot in snapshots)
+      if (!snapshot.isCanonicalEnv) snapshot,
+  ];
+
+  /// Whether any snapshot was captured outside the configured canonical
+  /// capture-env.
+  bool get hasNonCanonicalCaptures => nonCanonicalCaptures.isNotEmpty;
 }

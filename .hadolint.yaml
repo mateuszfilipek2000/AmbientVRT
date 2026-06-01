@@ -1,0 +1,8 @@
+# Hadolint config for the capture-env Dockerfiles (.github/workflows/capture-env.yml).
+ignored:
+  # DL3008: pinning apt package versions. The base images are themselves pinned
+  # by tag/digest, and pinning every transitive font/lib version is noise here.
+  - DL3008
+  # DL3016: pinning global npm package versions. We pin Playwright via the
+  # PLAYWRIGHT_VERSION env var, which hadolint does not track across the interp.
+  - DL3016

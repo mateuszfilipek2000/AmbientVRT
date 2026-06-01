@@ -396,6 +396,38 @@ String _buildHtml({
       color: var(--pass);
     }
 
+    .notice {
+      margin-top: 24px;
+      padding: 16px 20px;
+      border-radius: 8px;
+    }
+
+    .notice h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .notice p {
+      margin: 0 0 8px;
+    }
+
+    .notice ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .notice--warning {
+      background: #fff7ed;
+      border: 1px solid #f59e0b;
+      color: #7c2d12;
+    }
+
+    .notice--warning code {
+      background: rgba(0, 0, 0, 0.06);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
     .section {
       margin-top: 40px;
     }
@@ -585,6 +617,8 @@ String _buildHtml({
       <p>Standalone static report with relative image assets. Total snapshots: ${runResult.summary.total}</p>
     </header>
 
+    ${_renderNonCanonicalNotice(runResult)}
+
     <section aria-labelledby="summary-heading">
       <h2 id="summary-heading">Summary</h2>
       <div class="summary-grid">
@@ -613,6 +647,26 @@ String _buildHtml({
   </main>
 </body>
 </html>''';
+}
+
+String _renderNonCanonicalNotice(CompareRunResult runResult) {
+  final nonCanonical = runResult.nonCanonicalCaptures;
+  if (nonCanonical.isEmpty) {
+    return '';
+  }
+  final ids = (nonCanonical.map((snapshot) => snapshot.id).toList()..sort())
+      .map((id) => '<li>${_escapeText(id)}</li>')
+      .join();
+  final expected = runResult.canonicalEnv;
+  return '''
+<aside class="notice notice--warning" role="alert">
+  <h2>⚠ Non-canonical capture environment</h2>
+  <p>${nonCanonical.length} snapshot(s) were captured outside the canonical
+  capture-env${expected == null ? '' : ' (<code>${_escapeText(expected)}</code>)'}.
+  Their pixels may not be reproducible; capture inside the canonical image
+  before accepting baselines.</p>
+  <ul>$ids</ul>
+</aside>''';
 }
 
 String _renderSection({

@@ -131,10 +131,11 @@ Future<void> _invokeAdapter({
       '--variant',
       variant,
     ],
-    if (loadedConfig.config.canonicalEnv case final canonicalEnv?) ...[
-      '--canonical-env',
-      canonicalEnv,
-    ],
+    // Note: `canonicalEnv` is intentionally NOT forwarded to the adapter. The
+    // adapter stamps the *actual* capture environment (via the
+    // AMBIENT_CAPTURE_ENV env var baked into the canonical image, or a
+    // toolchain fallback). The configured `canonicalEnv` is the *expected*
+    // value, used by the core to flag non-canonical captures (backlog T6.1).
   ];
 
   ProcessResult result;
