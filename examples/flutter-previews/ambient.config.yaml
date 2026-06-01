@@ -1,0 +1,20 @@
+# AmbientVRT config for the Flutter preview example.
+#
+# The capture adapter is invoked as a plain Dart executable: `bin/capture.dart`
+# imports only the Flutter-free capture entrypoint, so it runs under `dart run`
+# and shells out to `flutter test` itself.
+adapters:
+  - platform: flutter
+    projectPath: ./
+    command: [dart, run, ambient_flutter:capture]
+
+storage:
+  backend: local
+  path: .ambient/baselines
+
+compare:
+  threshold: 0.1
+
+# A fixed fingerprint keeps re-captures on the same machine byte-identical for
+# the determinism check; CI would point this at the canonical capture-env image.
+canonicalEnv: ambient-flutter-local

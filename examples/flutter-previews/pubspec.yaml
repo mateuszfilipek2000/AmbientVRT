@@ -1,0 +1,29 @@
+name: flutter_previews
+description: Example Flutter previews for AmbientVRT.
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  ambient_flutter:
+    path: ../../packages/ambient_flutter
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/Roboto-Regular.ttf
+  fonts:
+    - family: AmbientPreviewSans
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
