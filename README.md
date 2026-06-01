@@ -1,6 +1,6 @@
 # AmbientVRT
 
-Framework-agnostic visual regression testing: capture component/preview snapshots, compare them against blessed baselines, and gate changes in CI. One core engine, pluggable capture adapters (Flutter today, React Native next).
+Framework-agnostic visual regression testing: capture component/preview snapshots, compare them against blessed baselines, and gate changes in CI. One core engine, pluggable capture adapters (Flutter and React Native).
 
 ## Layout
 
@@ -51,6 +51,24 @@ To exercise the GitHub Actions CI workflow locally with `act`, use the same arti
 
 ```sh
 act -W .github/workflows/ci.yml --artifact-server-path /tmp/act-artifacts
+```
+
+## React Native capture adapter
+
+The npm package also ships the React Native capture adapter (`ambient-rn-capture`). It enumerates a built Storybook (`@storybook/react-native-web-vite`), serves it locally, and screenshots each story — across configured variants driven by Storybook globals — with Playwright/Chromium, emitting the core manifest (snapshot ids derived to match `ambient_core`). The sample app lives in `examples/rn-storybook`.
+
+```sh
+cd js && npm ci && npm run build
+npx playwright install chromium
+cd ../examples/rn-storybook && npm ci && npm run build-storybook
+# full loop against the shared core binary:
+AMBIENT_BIN=../../build/ambient ../../build/ambient test --config ambient.config.yaml
+```
+
+The `.github/workflows/rn-adapter.yml` workflow builds the shared binary, the npm package, and the example Storybook, then runs the capture + full-loop e2e tests. Validate it locally with `act` (one self-contained job, no artifacts needed):
+
+```sh
+act -W .github/workflows/rn-adapter.yml
 ```
 
 ## License
