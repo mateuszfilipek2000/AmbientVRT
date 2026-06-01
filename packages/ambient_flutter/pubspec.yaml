@@ -1,21 +1,33 @@
 name: ambient_flutter
-description: AmbientVRT Flutter capture adapter — discovers @Preview widgets, renders them to PNGs, and emits the core manifest.
-version: 0.1.0
+description: Flutter preview capture adapter for AmbientVRT.
 publish_to: none
-
-environment:
-  sdk: ^3.12.0
-  flutter: ">=3.44.0"
-
 resolution: workspace
 
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.0'
+
+executables:
+  ambient-flutter-capture: capture
+
 dependencies:
-  flutter:
-    sdk: flutter
   ambient_core:
     path: ../ambient_core
+  analyzer: ^8.4.0
+  args: ^2.7.0
+  crypto: ^3.0.6
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  image: ^4.5.4
+  path: ^1.9.1
+  yaml: ^3.1.3
 
 dev_dependencies:
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: false
