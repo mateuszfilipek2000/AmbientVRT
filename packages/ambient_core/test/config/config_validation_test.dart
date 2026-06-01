@@ -140,6 +140,80 @@ void main() {
       expect(error.detail, contains('empty'));
     });
 
+    test('s3 storage without an s3 section', () {
+      final config = validConfig()..['storage'] = {'backend': 's3'};
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3');
+      expect(error.detail, contains('s3'));
+    });
+
+    test('s3 section without an endpoint', () {
+      final config = validConfig()
+        ..['storage'] = {
+          'backend': 's3',
+          's3': {'bucket': 'ambient-baselines'},
+        };
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3.endpoint');
+      expect(error.detail, contains('required'));
+    });
+
+    test('s3 section without a bucket', () {
+      final config = validConfig()
+        ..['storage'] = {
+          'backend': 's3',
+          's3': {'endpoint': 'minio.lan'},
+        };
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3.bucket');
+      expect(error.detail, contains('required'));
+    });
+
+    test('s3 port out of range', () {
+      final config = validConfig()
+        ..['storage'] = {
+          'backend': 's3',
+          's3': {
+            'endpoint': 'minio.lan',
+            'bucket': 'ambient-baselines',
+            'port': 70000,
+          },
+        };
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3.port');
+      expect(error.detail, contains('between 1 and 65535'));
+    });
+
+    test('s3 useSSL of the wrong type', () {
+      final config = validConfig()
+        ..['storage'] = {
+          'backend': 's3',
+          's3': {
+            'endpoint': 'minio.lan',
+            'bucket': 'ambient-baselines',
+            'useSSL': 'yes',
+          },
+        };
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3.useSSL');
+      expect(error.detail, contains('boolean'));
+    });
+
+    test('unknown property in the s3 section', () {
+      final config = validConfig()
+        ..['storage'] = {
+          'backend': 's3',
+          's3': {
+            'endpoint': 'minio.lan',
+            'bucket': 'ambient-baselines',
+            'accessKey': 'leaked',
+          },
+        };
+      final error = expectFormatError(config);
+      expect(error.location, 'storage.s3.accessKey');
+      expect(error.detail, contains('unknown property'));
+    });
+
     test('compare threshold above the allowed range', () {
       final config = validConfig()..['compare'] = {'threshold': 1.5};
       final error = expectFormatError(config);
