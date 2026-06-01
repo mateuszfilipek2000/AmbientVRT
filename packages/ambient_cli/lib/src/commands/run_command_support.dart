@@ -92,11 +92,46 @@ BaselineStorage createStorage({
         defaultBranch: defaultBranch,
       );
     case StorageBackend.s3:
-      throw const AmbientCliException(
-        'The "s3" storage backend is not implemented yet.',
-        exitCode: AmbientExitCode.notImplemented,
+      return _createS3Storage(
+        s3: loadedConfig.config.storage.s3!,
+        environment: environment,
+        defaultBranch: defaultBranch,
       );
   }
+}
+
+S3StorageBackend _createS3Storage({
+  required S3StorageConfig s3,
+  required AmbientEnvironment environment,
+  String? defaultBranch,
+}) {
+  final accessKey = _requireS3Credential(environment, s3.accessKeyEnv);
+  final secretKey = _requireS3Credential(environment, s3.secretKeyEnv);
+
+  return S3StorageBackend.connect(
+    endpoint: s3.endpoint,
+    port: s3.port,
+    useSSL: s3.useSSL,
+    region: s3.region,
+    pathStyle: s3.pathStyle,
+    bucket: s3.bucket,
+    keyPrefix: s3.prefix,
+    accessKey: accessKey,
+    secretKey: secretKey,
+    defaultBranch: defaultBranch,
+  );
+}
+
+String _requireS3Credential(AmbientEnvironment environment, String envVar) {
+  final value = environment.environmentVariables[envVar];
+  if (value == null || value.isEmpty) {
+    throw AmbientCliException(
+      'The "s3" storage backend needs credentials in environment variable '
+      '"$envVar", but it is not set.',
+      exitCode: AmbientExitCode.config,
+    );
+  }
+  return value;
 }
 
 CompareOptions buildCompareOptions(Config config) {

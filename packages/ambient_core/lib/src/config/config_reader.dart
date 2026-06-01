@@ -97,6 +97,30 @@ class ConfigReader {
     return requireMap(key);
   }
 
+  /// Reads an optional boolean. Returns `null` when [key] is absent.
+  bool? optionalBool(String key) {
+    if (!_map.containsKey(key)) return null;
+    final value = _require(key);
+    if (value is! bool) {
+      _fail(_child(key), 'expected a boolean, got ${configTypeName(value)}');
+    }
+    return value;
+  }
+
+  /// Reads an optional integer within the inclusive range [[min], [max]].
+  /// Returns `null` when [key] is absent.
+  int? optionalInt(String key, {required int min, required int max}) {
+    if (!_map.containsKey(key)) return null;
+    final value = _require(key);
+    if (value is! int) {
+      _fail(_child(key), 'expected an integer, got ${configTypeName(value)}');
+    }
+    if (value < min || value > max) {
+      _fail(_child(key), 'must be between $min and $max, got $value');
+    }
+    return value;
+  }
+
   /// Requires a number within the inclusive range [[min], [max]].
   double requireNumberInRange(String key, {required num min, required num max}) =>
       _asNumberInRange(_require(key), _child(key), min: min, max: max);

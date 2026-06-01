@@ -11,6 +11,7 @@ export 'src/config/adapter.dart';
 export 'src/config/compare_config.dart';
 export 'src/config/config.dart';
 export 'src/config/errors.dart';
+export 'src/config/s3_storage_config.dart';
 export 'src/config/storage_config.dart';
 export 'src/manifest/brightness.dart';
 export 'src/manifest/errors.dart';

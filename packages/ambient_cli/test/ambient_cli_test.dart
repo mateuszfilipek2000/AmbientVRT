@@ -144,6 +144,55 @@ canonicalEnv: ambient/capture-env@sha256:canonical
     );
 
     test(
+      's3 storage without credentials fails with a located config error',
+      () async {
+        final configFile = File.fromUri(
+          workspaceDirectory.uri.resolve('ambient.config.yaml'),
+        );
+        await configFile.writeAsString('''adapters:
+  - platform: flutter
+    projectPath: ./
+storage:
+  backend: s3
+  s3:
+    endpoint: 127.0.0.1
+    bucket: ambient-baselines
+    accessKeyEnv: MY_S3_KEY
+    secretKeyEnv: MY_S3_SECRET
+''', flush: true);
+        await _writeRunFixture(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: _solidPng(
+                width: 3,
+                height: 2,
+                red: 20,
+                green: 40,
+                blue: 60,
+              ),
+            ),
+          ],
+        );
+
+        final stderr = StringBuffer();
+        final exitCode = await runAmbient(
+          ['test', '--run-dir', runDirectory.path],
+          stdout: StringBuffer(),
+          stderr: stderr,
+          currentDirectoryPath: workspaceDirectory.path,
+          // The configured credential env vars are absent from this map.
+          environmentVariables: const {},
+        );
+
+        expect(exitCode, AmbientExitCode.config);
+        expect(stderr.toString(), contains('MY_S3_KEY'));
+      },
+    );
+
+    test(
       'test and accept enforce exit codes across new, pass, and changed runs',
       () async {
         await _writeRunDirConfig(workspaceDirectory, storageDirectory.path);

@@ -127,6 +127,70 @@ jobs:
         run: flutter test
         working-directory: packages/ambient_flutter
 
+  storage-s3:
+    name: S3 storage contract (MinIO)
+    runs-on: ubuntu-latest
+    # Same pinned Dart/Flutter toolchain image as the `dart` job; we only need
+    # the Dart SDK here, but reusing the image avoids a second toolchain.
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Activate melos
+        run: |
+          dart pub global activate melos 7.8.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      # The S3 backend contract suite (the same suite LocalStorageBackend passes)
+      # runs against a real MinIO. We download the MinIO server binary and run it
+      # in-process rather than via a service container so this works identically
+      # under local `act` (no service-container command override is needed, and
+      # the official minio/minio image requires a `server` arg services can't
+      # pass). MinIO + the tests live in one step so the server's lifetime is
+      # bounded by the step.
+      - name: S3 storage contract tests against MinIO
+        working-directory: packages/ambient_core
+        # Force bash (act may otherwise default to dash, which lacks pipefail).
+        shell: bash
+        env:
+          AMBIENT_S3_TEST_ENDPOINT: 127.0.0.1
+          AMBIENT_S3_TEST_PORT: '9000'
+          AMBIENT_S3_TEST_USE_SSL: 'false'
+          AMBIENT_S3_TEST_ACCESS_KEY: minioadmin
+          AMBIENT_S3_TEST_SECRET_KEY: minioadmin
+          AMBIENT_S3_TEST_BUCKET: ambient-baselines-test
+          AMBIENT_S3_TEST_REGION: us-east-1
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64) minio_arch=amd64 ;;
+            aarch64 | arm64) minio_arch=arm64 ;;
+            *) echo "unsupported arch $(uname -m)"; exit 1 ;;
+          esac
+          curl -fsSL "https://dl.min.io/server/minio/release/linux-${minio_arch}/minio" -o /tmp/minio
+          chmod +x /tmp/minio
+          MINIO_ROOT_USER=minioadmin MINIO_ROOT_PASSWORD=minioadmin \
+            /tmp/minio server /tmp/minio-data --address ':9000' >/tmp/minio.log 2>&1 &
+          minio_pid=$!
+          echo "Waiting for MinIO to come up..."
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:9000/minio/health/live"; then
+              echo "MinIO ready after ${i}s"
+              break
+            fi
+            if ! kill -0 "$minio_pid" 2>/dev/null; then
+              echo "MinIO exited early:"; cat /tmp/minio.log; exit 1
+            fi
+            sleep 1
+          done
+          dart test test/storage/s3_storage_backend_test.dart
+
   js:
     name: JS build + test + lint
     needs: linux-binary
