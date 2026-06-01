@@ -138,6 +138,97 @@ void main() {
     });
 
     test(
+      'accept can compare against one branch and write to another',
+      () async {
+        storage = LocalStorageBackend(
+          directoryPath: storageDirectory.path,
+          defaultBranch: 'main',
+        );
+        final mainManifest = await _writeManifest(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: _solidPng(
+                width: 3,
+                height: 2,
+                red: 20,
+                green: 40,
+                blue: 60,
+              ),
+            ),
+          ],
+        );
+
+        final mainRun = await compareRun(
+          manifest: mainManifest,
+          storage: storage,
+          options: CompareRunOptions(
+            runDirectoryPath: runDirectory.path,
+            branch: 'main',
+          ),
+        );
+        await acceptRun(mainRun, storage: storage, branch: 'main');
+
+        final featureManifest = await _writeManifest(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: _singlePixelChangePng(
+                width: 3,
+                height: 2,
+                baseRed: 20,
+                baseGreen: 40,
+                baseBlue: 60,
+                changedX: 1,
+                changedY: 0,
+                changedRed: 255,
+                changedGreen: 255,
+                changedBlue: 255,
+              ),
+            ),
+          ],
+        );
+
+        final featureRun = await compareRun(
+          manifest: featureManifest,
+          storage: storage,
+          options: CompareRunOptions(
+            runDirectoryPath: runDirectory.path,
+            branch: 'main',
+          ),
+        );
+
+        expect(featureRun.summary.changed, 1);
+        await acceptRun(featureRun, storage: storage, branch: 'feature');
+
+        final rerunAgainstMain = await compareRun(
+          manifest: featureManifest,
+          storage: storage,
+          options: CompareRunOptions(
+            runDirectoryPath: runDirectory.path,
+            branch: 'main',
+          ),
+        );
+        final rerunAgainstFeature = await compareRun(
+          manifest: featureManifest,
+          storage: storage,
+          options: CompareRunOptions(
+            runDirectoryPath: runDirectory.path,
+            branch: 'feature',
+          ),
+        );
+
+        expect(rerunAgainstMain.summary.changed, 1);
+        expect(rerunAgainstFeature.summary.passed, 1);
+        expect(rerunAgainstFeature.summary.isSuccessful, isTrue);
+      },
+    );
+
+    test(
       'summary counts each verdict correctly and tracks probable renames',
       () async {
         final previousManifest = await _writeManifest(

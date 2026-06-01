@@ -25,11 +25,13 @@ Future<int> runAmbient(
   StringSink? stdout,
   StringSink? stderr,
   String? currentDirectoryPath,
+  Map<String, String>? environmentVariables,
 }) async {
   final environment = AmbientEnvironment.system(
     stdout: stdout,
     stderr: stderr,
     currentDirectoryPath: currentDirectoryPath,
+    environmentVariables: environmentVariables,
   );
   final runner = AmbientRunner(
     commands: [InitCommand(), TestCommand(), CaptureCommand(), AcceptCommand()],
