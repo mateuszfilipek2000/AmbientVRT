@@ -233,6 +233,126 @@ canonicalEnv: ambient/capture-env@sha256:canonical
     );
 
     test(
+      'feature branches compare against main by default and accept into branch storage',
+      () async {
+        const environmentVariables = <String, String>{};
+        await _writeRunDirConfig(workspaceDirectory, storageDirectory.path);
+        await _initializeGitRepository(workspaceDirectory);
+        final mainPng = _solidPng(
+          width: 3,
+          height: 2,
+          red: 20,
+          green: 40,
+          blue: 60,
+        );
+        final featurePng = _singlePixelChangePng(
+          width: 3,
+          height: 2,
+          baseRed: 20,
+          baseGreen: 40,
+          baseBlue: 60,
+          changedX: 1,
+          changedY: 0,
+          changedRed: 255,
+          changedGreen: 255,
+          changedBlue: 255,
+        );
+
+        await _writeRunFixture(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: mainPng,
+            ),
+          ],
+        );
+        expect(
+          await runAmbient(
+            ['accept', '--run-dir', runDirectory.path],
+            stdout: StringBuffer(),
+            stderr: StringBuffer(),
+            currentDirectoryPath: workspaceDirectory.path,
+            environmentVariables: environmentVariables,
+          ),
+          AmbientExitCode.success,
+        );
+
+        await _runGit(workspaceDirectory, ['switch', '-c', 'feature']);
+        await _writeRunFixture(
+          runDirectory,
+          entries: [
+            _capture(
+              id: 'button-primary',
+              relativePath: 'captures/button-primary.png',
+              pngBytes: featurePng,
+            ),
+          ],
+        );
+
+        final featureStdout = StringBuffer();
+        final featureExitCode = await runAmbient(
+          ['test', '--run-dir', runDirectory.path],
+          stdout: featureStdout,
+          stderr: StringBuffer(),
+          currentDirectoryPath: workspaceDirectory.path,
+          environmentVariables: environmentVariables,
+        );
+
+        expect(featureExitCode, AmbientExitCode.comparisonFailed);
+        expect(featureStdout.toString(), contains('changed=1'));
+        expect(featureStdout.toString(), contains('new=0'));
+
+        expect(
+          await runAmbient(
+            ['accept', '--run-dir', runDirectory.path],
+            stdout: StringBuffer(),
+            stderr: StringBuffer(),
+            currentDirectoryPath: workspaceDirectory.path,
+            environmentVariables: environmentVariables,
+          ),
+          AmbientExitCode.success,
+        );
+
+        final storage = LocalStorageBackend(
+          directoryPath: storageDirectory.path,
+          defaultBranch: 'main',
+        );
+        expect(
+          await storage.getBaseline('button-primary', branch: 'main'),
+          orderedEquals(mainPng),
+        );
+        expect(
+          await storage.getBaseline('button-primary', branch: 'feature'),
+          orderedEquals(featurePng),
+        );
+
+        final rerunStdout = StringBuffer();
+        final rerunExitCode = await runAmbient(
+          ['test', '--run-dir', runDirectory.path],
+          stdout: rerunStdout,
+          stderr: StringBuffer(),
+          currentDirectoryPath: workspaceDirectory.path,
+          environmentVariables: environmentVariables,
+        );
+        expect(rerunExitCode, AmbientExitCode.comparisonFailed);
+        expect(rerunStdout.toString(), contains('changed=1'));
+
+        final explicitFeatureStdout = StringBuffer();
+        final explicitFeatureExitCode = await runAmbient(
+          ['test', '--run-dir', runDirectory.path, '--branch', 'feature'],
+          stdout: explicitFeatureStdout,
+          stderr: StringBuffer(),
+          currentDirectoryPath: workspaceDirectory.path,
+          environmentVariables: environmentVariables,
+        );
+        expect(explicitFeatureExitCode, AmbientExitCode.success);
+        expect(explicitFeatureStdout.toString(), contains('passed=1'));
+      },
+    );
+
+    test(
       'capture invokes the adapter through the documented subprocess contract',
       () async {
         final captureDirectory = Directory.fromUri(
@@ -372,6 +492,41 @@ canonicalEnv: ambient/capture-env@sha256:canonical
       },
     );
   });
+}
+
+Future<void> _initializeGitRepository(Directory workspaceDirectory) async {
+  await _runGit(workspaceDirectory, ['init', '--initial-branch=main']);
+  await _runGit(workspaceDirectory, ['config', 'user.name', 'Ambient CLI']);
+  await _runGit(workspaceDirectory, [
+    'config',
+    'user.email',
+    'ambient@example.com',
+  ]);
+  await File.fromUri(
+    workspaceDirectory.uri.resolve('.gitkeep'),
+  ).writeAsString('workspace\n', flush: true);
+  await _runGit(workspaceDirectory, ['add', '.gitkeep']);
+  await _runGit(workspaceDirectory, ['commit', '-m', 'Initial commit']);
+}
+
+Future<void> _runGit(
+  Directory workspaceDirectory,
+  List<String> arguments,
+) async {
+  final result = await Process.run(
+    'git',
+    arguments,
+    workingDirectory: workspaceDirectory.path,
+    runInShell: false,
+  );
+  expect(
+    result.exitCode,
+    0,
+    reason:
+        'git ${arguments.join(' ')} failed:\n'
+        'stdout: ${result.stdout}\n'
+        'stderr: ${result.stderr}',
+  );
 }
 
 Future<void> _writeRunDirConfig(
