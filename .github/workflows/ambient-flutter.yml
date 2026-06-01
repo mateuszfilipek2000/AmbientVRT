@@ -1,0 +1,26 @@
+name: Ambient (Flutter example)
+
+# Caller for the reusable visual gate (backlog T6.4). On every push and PR it runs
+# `ambient test` over examples/flutter-previews inside the canonical container.
+# The reusable job's conclusion is the commit status branch protection can require;
+# the uploaded `ambient-report-flutter` artifact carries the HTML report + diffs.
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ambient-flutter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    uses: ./.github/workflows/ambient.yml
+    with:
+      example-path: examples/flutter-previews
+      # Matches canonicalEnv in the example's ambient.config.yaml so in-container
+      # captures are treated as canonical (no non-canonical-capture warning).
+      canonical-env: ambient-flutter-local
+      artifact-name: ambient-report-flutter

@@ -1,0 +1,69 @@
+name: Ambient accept baselines
+
+# The "accept" half of the PR gate (backlog T6.4). When a maintainer adds the
+# `ambient-accept` label to a PR, re-capture in the canonical container, bless the
+# current captures as baselines, and push them to the PR branch — which re-triggers
+# Ambient (Flutter example) and turns the gate green.
+#
+# Note: pushing back works for same-repo PR branches. Fork PRs get a read-only
+# token, so for those, accept locally (`ambient accept`) and push the baselines.
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+
+jobs:
+  accept:
+    name: Accept baselines
+    if: github.event.label.name == 'ambient-accept'
+    runs-on: ubuntu-latest
+    container: ghcr.io/cirruslabs/flutter:3.44.0
+    env:
+      AMBIENT_CAPTURE_ENV: ambient-flutter-local
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Check out the PR branch itself so the accepted baselines land on it.
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Trust workspace
+        run: git config --global --add safe.directory '*'
+
+      - name: Activate melos
+        run: |
+          dart pub global activate melos 7.8.0
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap workspace
+        run: melos bootstrap
+
+      - name: Build shared ambient binary
+        run: ./tool/build.sh --output "$RUNNER_TEMP/ambient"
+
+      - name: Resolve example deps
+        run: flutter pub get
+        working-directory: examples/flutter-previews
+
+      # Captures the previews and writes every current candidate as a baseline.
+      - name: Accept baselines
+        working-directory: examples/flutter-previews
+        run: |
+          "$RUNNER_TEMP/ambient" accept --config ambient.config.yaml
+
+      # Scope the commit to the baselines so workspace churn (lockfiles, etc.)
+      # never sneaks into the PR. No-op cleanly when nothing changed.
+      - name: Commit & push accepted baselines
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          baselines='examples/flutter-previews/.ambient/baselines'
+          if git diff --quiet -- "$baselines"; then
+            echo "No baseline changes to accept."
+            exit 0
+          fi
+          git add "$baselines"
+          git commit -m "Accept AmbientVRT baselines for flutter-previews"
+          git push
