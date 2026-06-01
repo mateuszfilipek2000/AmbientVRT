@@ -53,19 +53,21 @@ void main() {
         );
 
         final html = await File(output.reportPath).readAsString();
-        expect(html, contains('<h1>AmbientVRT Report</h1>'));
-        expect(html, contains('<h2 id="changed-heading">Changed (1)</h2>'));
-        expect(html, contains('<h2 id="new-heading">New (1)</h2>'));
-        expect(
-          html,
-          contains('<h2 id="size-changed-heading">Size changed (1)</h2>'),
-        );
-        expect(html, contains('<h2 id="passed-heading">Passed (2)</h2>'));
+        expect(html, contains('<h1 class="sr-only">AmbientVRT Report</h1>'));
+        expect(html, contains('Visual regression report'));
+        // Summary counts are exposed as data-attributes on the summary block.
+        expect(html, contains('data-total="5"'));
+        expect(html, contains('data-changed="1"'));
+        expect(html, contains('data-new="1"'));
+        expect(html, contains('data-size-changed="1"'));
+        expect(html, contains('data-passed="2"'));
         expect(html, contains('button-changed'));
         expect(html, contains('button-new'));
         expect(html, contains('button-size'));
         expect(html, contains('button-renamed'));
         expect(html, contains('Probable rename from button-old-name'));
+        // The changed snapshot surfaces its mismatch percentage.
+        expect(html, contains('mismatch'));
         expect(html, isNot(contains(reportDirectory.path)));
 
         final assetSources = RegExp(
