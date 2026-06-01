@@ -84,10 +84,13 @@ final class AcceptCommand extends AmbientCommand {
         runDirectoryPath: runDirectoryPath,
         compareOptions: buildCompareOptions(loadedConfig.config),
         branch: branch,
+        canonicalEnv: loadedConfig.config.canonicalEnv,
       ),
     );
     final ids = results.multiOption('id');
     final idsToAccept = ids.isEmpty ? null : ids.toSet();
+
+    warnOnNonCanonicalCaptures(environment: environment, runResult: runResult);
 
     final deleteCapturedRunDirectory = orchestratedRunDirectory != null;
     try {

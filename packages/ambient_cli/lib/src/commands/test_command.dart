@@ -96,6 +96,7 @@ final class TestCommand extends AmbientCommand {
           runDirectoryPath: runDirectoryPath,
           compareOptions: compareOptions,
           branch: branch,
+          canonicalEnv: loadedConfig.config.canonicalEnv,
         ),
       );
       final report = await generateHtmlReport(
@@ -110,6 +111,10 @@ final class TestCommand extends AmbientCommand {
           'Probable renames: ${runResult.probableRenames.length}',
         );
       }
+      warnOnNonCanonicalCaptures(
+        environment: environment,
+        runResult: runResult,
+      );
 
       if (runResult.summary.hasBlockingChanges ||
           runResult.summary.hasUnacceptedSnapshots) {

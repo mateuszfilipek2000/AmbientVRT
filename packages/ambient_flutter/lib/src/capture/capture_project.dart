@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:ambient_core/ambient_core.dart';
+// Hide the manifest `Platform` enum so the unprefixed dart:io `Platform`
+// (used for `Platform.environment`) resolves unambiguously here.
+import 'package:ambient_core/ambient_core.dart' hide Platform;
 import 'package:crypto/crypto.dart';
 import 'package:image/image.dart' as image;
 import 'package:path/path.dart' as p;
@@ -86,8 +88,10 @@ Future<Manifest> captureFlutterPreviews({
       );
       _materializePngCapture(preview, outputDirectory);
     }
-    final envFingerprint =
-        canonicalEnv ?? await _computeFlutterEnvFingerprint(projectPath);
+    final envFingerprint = await _resolveEnvFingerprint(
+      projectPath: projectPath,
+      canonicalEnvOverride: canonicalEnv,
+    );
     final entries = <ManifestEntry>[
       for (final preview in previews)
         _manifestEntryForPreview(preview, outputDirectory, envFingerprint),
@@ -169,6 +173,35 @@ void _materializePngCapture(
   captureFile.parent.createSync(recursive: true);
   captureFile.writeAsBytesSync(encoder.encode(png), flush: true);
   rawCaptureFile.deleteSync();
+}
+
+/// Environment variable the canonical capture-env image bakes in to identify
+/// itself (its digest or reference). See `docker/capture-env/`.
+const String _captureEnvVariable = 'AMBIENT_CAPTURE_ENV';
+
+/// Resolves the `envFingerprint` stamped onto every manifest entry, recording
+/// the *actual* environment the capture ran in so the core can flag captures
+/// taken outside the canonical image.
+///
+/// Priority:
+/// 1. The `AMBIENT_CAPTURE_ENV` env var, set by the canonical capture-env
+///    image — authoritative for in-image captures.
+/// 2. An explicit `--canonical-env` override (rarely needed; for callers that
+///    cannot set the env var).
+/// 3. A best-effort, deterministic Flutter/Dart toolchain fingerprint, so
+///    non-canonical captures are still distinguishable.
+Future<String> _resolveEnvFingerprint({
+  required String projectPath,
+  required String? canonicalEnvOverride,
+}) async {
+  final fromImage = Platform.environment[_captureEnvVariable];
+  if (fromImage != null && fromImage.trim().isNotEmpty) {
+    return fromImage.trim();
+  }
+  if (canonicalEnvOverride != null && canonicalEnvOverride.trim().isNotEmpty) {
+    return canonicalEnvOverride.trim();
+  }
+  return _computeFlutterEnvFingerprint(projectPath);
 }
 
 Future<String> _computeFlutterEnvFingerprint(String projectPath) async {

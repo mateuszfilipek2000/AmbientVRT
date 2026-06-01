@@ -143,3 +143,24 @@ String formatSummary(CompareRunSummary summary) {
   return 'passed=${summary.passed}, changed=${summary.changed}, '
       'new=${summary.newSnapshots}, size-changed=${summary.sizeChanged}';
 }
+
+/// Emits a non-blocking warning listing any snapshots captured outside the
+/// configured canonical capture-env (backlog T6.1). No-op when the config
+/// declares no `canonicalEnv` or every capture is canonical.
+void warnOnNonCanonicalCaptures({
+  required AmbientEnvironment environment,
+  required CompareRunResult runResult,
+}) {
+  if (!runResult.hasNonCanonicalCaptures) {
+    return;
+  }
+  final ids = [
+    for (final snapshot in runResult.nonCanonicalCaptures) snapshot.id,
+  ]..sort();
+  final expected = runResult.canonicalEnv;
+  environment.writeErr(
+    'Warning: ${ids.length} snapshot(s) were captured outside the canonical '
+    'capture-env${expected == null ? '' : ' ($expected)'}. '
+    'Their pixels may not be reproducible: ${ids.join(', ')}.',
+  );
+}
