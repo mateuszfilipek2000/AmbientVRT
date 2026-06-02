@@ -10,6 +10,11 @@ CI — with one core engine and pluggable capture adapters for **Flutter** and
 > **Linux x64/arm64 only**; on other platforms you can build from source or
 > vendor your own binary (see below).
 
+![AmbientVRT HTML report — interactive diff viewer showing changed and passed snapshots across light/dark variants](docs/report.png)
+
+> The HTML report produced by `ambient test`: a slider/side-by-side diff viewer,
+> per-snapshot change percentages, and variant-aware grouping.
+
 ## What it does
 
 1. **Capture** — an adapter renders your components/previews to PNGs and emits a
