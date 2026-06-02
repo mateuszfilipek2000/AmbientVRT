@@ -1,91 +1,137 @@
 # AmbientVRT
 
-Framework-agnostic visual regression testing: capture component/preview snapshots, compare them against blessed baselines, and gate changes in CI. One core engine, pluggable capture adapters (Flutter and React Native).
+**Framework-agnostic visual regression testing.** Capture snapshots of your UI
+components, compare them against blessed baselines, and gate visual changes in
+CI — with one core engine and pluggable capture adapters for **Flutter** and
+**React Native**.
 
-## Layout
+> ⚠️ **Status: pre-1.0 (`0.1.0`).** AmbientVRT is under active development and
+> APIs, config, and the manifest format may change. The prebuilt binary is
+> **Linux x64/arm64 only**; on other platforms you can build from source or
+> vendor your own binary (see below).
 
-This is a [melos](https://melos.invertase.dev/) monorepo backed by a Dart [pub workspace](https://dart.dev/tools/pub/workspaces).
+## What it does
 
-| Path | Package | Purpose |
+1. **Capture** — an adapter renders your components/previews to PNGs and emits a
+   normalized *manifest* describing each snapshot (id, platform, variant,
+   brightness, …).
+2. **Compare** — the core engine diffs each captured snapshot against its
+   accepted baseline using a pixel comparator with a configurable threshold.
+3. **Gate** — in CI, any unaccepted visual change fails the check and produces
+   an HTML report (with an interactive diff viewer) plus baseline/candidate/diff
+   PNGs as an artifact.
+4. **Accept** — when a change is intentional, you bless the new captures as the
+   baselines.
+
+Baselines live alongside your code (committed under `.ambient/baselines/`) or in
+S3-compatible object storage (e.g. MinIO).
+
+## Supported adapters
+
+| Adapter | What it captures | Distribution |
 | --- | --- | --- |
-| `packages/ambient_core` | `ambient_core` | The engine: manifest model, comparator, baseline/ID logic, storage, and report generation. No adapter or CLI code. |
-| `packages/ambient_cli` | `ambient_cli` | The `ambient` command (`init`, `test`, `capture`, `accept`) and the orchestrator. Depends on `ambient_core`. |
-| `packages/ambient_flutter` | `ambient_flutter` | Flutter capture adapter: discovers `@Preview` widgets, renders them to PNGs, emits the core manifest. Depends on `ambient_core`. |
-| `js/` | `ambientvrt` (npm) | React Native capture adapter and the npm distribution wrapper for the core binary. |
-| `schemas/` | — | Versioned JSON Schemas for the manifest and `ambient.config.yaml`. |
-| `docker/` | — | Pinned canonical capture environments. |
-| `examples/` | — | Committed Flutter and RN sample apps used as e2e substrate. |
-| `docs/` | — | Design docs and contracts. |
+| **Flutter** | `@Preview` / `MultiPreview` widgets, rendered to PNGs | `ambient_flutter` Dart package (build from source for now) |
+| **React Native** | A built Storybook (`@storybook/react-native-web-vite`), screenshotted per story and variant via Playwright/Chromium | `ambientvrt` npm package (`ambient-rn-capture`) |
 
-CLI command: `ambient` · Dart packages: `ambient_core`, `ambient_cli`, `ambient_flutter` · npm package: `ambientvrt`.
+## Installation
 
-## Getting started
+### React Native (npm)
 
 ```sh
-dart pub global activate melos
-melos bootstrap   # resolves the pub workspace
-melos run analyze # dart analyze across all packages
-melos run workspace-test --no-select # run package tests
+npm install --save-dev ambientvrt
+npx playwright install chromium
 ```
 
-## Standalone binary
+On Linux, install vendors the matching `ambient` core binary automatically. On
+macOS/Windows the download is skipped (the published binary is Linux-only); set
+`AMBIENT_BINARY_PATH=/path/to/ambient` during install to vendor your own, or run
+inside the canonical Linux container.
+
+### Flutter / standalone binary
+
+The Dart packages are not yet published to pub.dev. Until then, clone this
+repository and build the standalone binary:
 
 ```sh
 ./tool/build.sh
 ./ambient --version
 ```
 
-Tag pushes run `.github/workflows/release.yml`, which builds the Linux binary, smoke-tests it in `debian:bookworm-slim`, and publishes it as a GitHub Release asset. To exercise the same workflow locally with `act`, use an artifact directory so the build and smoke-test jobs can share the compiled binary:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full monorepo build.
+
+## Quickstart
 
 ```sh
-act workflow_dispatch -W .github/workflows/release.yml --artifact-server-path /tmp/act-artifacts
+# 1. Scaffold a config in your project
+ambient init                 # writes ambient.config.yaml
+
+# 2. Edit ambient.config.yaml for your adapter (see examples/ below)
+
+# 3. Run the visual check: capture + compare against baselines
+ambient test --config ambient.config.yaml
+
+# 4. If a change is intentional, bless the new captures
+ambient accept
 ```
 
-## npm wrapper
+A minimal `ambient.config.yaml`:
 
-The `ambientvrt` npm package is a thin wrapper around the standalone Linux binary. On Linux, `npm install` runs a `postinstall` step that downloads the matching GitHub Release asset for the package version and vendors it inside the package before `ambient` is invoked.
+```yaml
+adapters:
+  - platform: react-native
+    storybookStaticDir: ./storybook-static
+    # command: [ambient-rn-capture]   # defaults to the binary on PATH
 
-For local and CI validation before a tagged release exists, set `AMBIENT_BINARY_PATH=/path/to/ambient` during `npm ci`; the postinstall script copies that binary into the package instead of downloading from GitHub Releases.
+storage:
+  backend: local
+  path: .ambient/baselines
 
-To exercise the GitHub Actions CI workflow locally with `act`, use the same artifact directory so the Linux binary build job can hand its artifact to the Node wrapper smoke test:
+compare:
+  threshold: 0.1
 
-```sh
-act -W .github/workflows/ci.yml --artifact-server-path /tmp/act-artifacts
+variants: [light, dark]
 ```
 
-## React Native capture adapter
+Runnable end-to-end examples live in
+[`examples/flutter-previews`](examples/flutter-previews) and
+[`examples/rn-storybook`](examples/rn-storybook).
 
-The npm package also ships the React Native capture adapter (`ambient-rn-capture`). It enumerates a built Storybook (`@storybook/react-native-web-vite`), serves it locally, and screenshots each story — across configured variants driven by Storybook globals — with Playwright/Chromium, emitting the core manifest (snapshot ids derived to match `ambient_core`). The sample app lives in `examples/rn-storybook`.
+## CLI commands
 
-```sh
-cd js && npm ci && npm run build
-npx playwright install chromium
-cd ../examples/rn-storybook && npm ci && npm run build-storybook
-# full loop against the shared core binary:
-AMBIENT_BIN=../../build/ambient ../../build/ambient test --config ambient.config.yaml
-```
+| Command | Purpose |
+| --- | --- |
+| `ambient init` | Scaffold an `ambient.config.yaml`. |
+| `ambient capture` | Run the configured capture adapters and emit a run directory. |
+| `ambient test` | Capture, then compare against accepted baselines and emit a report. |
+| `ambient accept` | Accept the current captures as blessed baselines. |
 
-The `.github/workflows/rn-adapter.yml` workflow builds the shared binary, the npm package, and the example Storybook, then runs the capture + full-loop e2e tests. Validate it locally with `act` (one self-contained job, no artifacts needed):
-
-```sh
-act -W .github/workflows/rn-adapter.yml
-```
-
-## PR visual gate
+## CI / PR visual gate
 
 `.github/workflows/ambient.yml` is a reusable workflow that runs `ambient test`
-for an example inside the canonical Flutter container, fails the check on any
-unaccepted visual change, and uploads `report.html` plus the baseline/candidate/diff
-PNGs as an artifact. `.github/workflows/ambient-flutter.yml` calls it on every push
-and PR over `examples/flutter-previews` (whose baselines are committed under
-`.ambient/baselines/`). Adding the `ambient-accept` label to a PR re-blesses the
-baselines via `.github/workflows/ambient-accept.yml`. See
-[`docs/ci-action.md`](docs/ci-action.md) for the full PR loop and `act` commands.
+inside a pinned canonical container, fails the check on any unaccepted visual
+change, posts a sticky report comment on the PR, and uploads the HTML report +
+diffs. See [docs/ci-action.md](docs/ci-action.md) for the full PR loop.
 
-```sh
-act push -W .github/workflows/ambient-flutter.yml --artifact-server-path /tmp/act-artifacts
-```
+## Storage backends
+
+- **`local`** — baselines committed in your repo under `.ambient/baselines/`.
+- **`s3`** — any S3-compatible store (AWS S3, MinIO, …). Credentials are read
+  **only** from environment variables (default `AMBIENT_S3_ACCESS_KEY` /
+  `AMBIENT_S3_SECRET_KEY`) — never from the config file. See [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+- [docs/contracts.md](docs/contracts.md) — manifest & config contracts
+- [docs/ci-action.md](docs/ci-action.md) — the CI / PR gate
+- [schemas/](schemas) — versioned JSON Schemas for the manifest and config
+
+## Contributing
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the repo layout, build, and test workflows. Security issues: please follow
+[SECURITY.md](SECURITY.md).
 
 ## License
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). Provided "as is", without warranty of any kind — see
+[SECURITY.md](SECURITY.md#disclaimer-of-warranty-and-liability).

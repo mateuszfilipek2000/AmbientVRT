@@ -1,6 +1,6 @@
 {
   "name": "ambientvrt",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "React Native capture adapter and the npm distribution wrapper for the AmbientVRT core binary.",
   "license": "Apache-2.0",
   "type": "commonjs",

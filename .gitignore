@@ -3,6 +3,11 @@ implementation_plan.md
 prd.md
 preview_snapshot/
 
+# Standalone public demo repos (their own independent git repos; never part of
+# this package's source or distribution).
+ambient-flutter-demo/
+ambient-rn-demo/
+
 # Dart / Flutter build artifacts
 .dart_tool/
 build/
@@ -14,3 +19,6 @@ doc/api/
 # Melos / IDE generated files
 *.iml
 .idea/
+
+# Local Claude Code agent settings
+.claude/
