@@ -107,6 +107,13 @@ final class TestCommand extends AmbientCommand {
         runResult: runResult,
         outputDirectoryPath: reportDirectoryPath,
       );
+      // Markdown twin of the report, for the CI Action's PR comment. Written
+      // next to report.html so the uploaded artifact carries both.
+      final summaryPath = environment.resolveFromDirectory(
+        reportDirectoryPath,
+        'summary.md',
+      );
+      await File(summaryPath).writeAsString(buildMarkdownSummary(runResult));
 
       environment.writeOut('Summary: ${formatSummary(runResult.summary)}');
       environment.writeOut('Report: ${report.reportPath}');

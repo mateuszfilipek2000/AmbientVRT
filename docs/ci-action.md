@@ -26,6 +26,25 @@ PNGs as an artifact you can download and eyeball.
 | `config` | `ambient.config.yaml` | Config filename within `example-path`. |
 | `canonical-env` | `''` | Stamped into `AMBIENT_CAPTURE_ENV` so in-container captures match the config's `canonicalEnv` (the authoritative fingerprint source — see [capture-env](../docker/capture-env/README.md)). |
 | `artifact-name` | `ambient-report` | Name of the uploaded report artifact. |
+| `comment` | `true` | Post (and update on re-runs) a sticky PR comment with the Markdown report summary. No-op on push events. |
+
+## The PR comment
+
+Pass/fail is terse. To make a run readable at a glance, `ambient test` writes a
+Markdown twin of the HTML report — `summary.md` — next to `report.html` (so the
+uploaded artifact carries both). The gate copies it into a sticky pull-request
+comment via [`marocchino/sticky-pull-request-comment`](https://github.com/marocchino/sticky-pull-request-comment),
+keyed by the `ambient-visual-gate` header so re-runs edit the same comment
+instead of stacking new ones. The body is an overall status line, the
+changed/size-changed/new/passed counts, and a table of the snapshots that need a
+look (mismatch % and size); a footer links to the run where the full HTML report
+artifact — with the baseline/candidate/diff triptychs — can be downloaded.
+
+The comment needs `pull-requests: write`. The reusable workflow declares it, but
+a called workflow's token is capped by its caller, so the caller
+(`ambient-flutter.yml`) grants it too. The comment step is `continue-on-error`
+and the post is skipped on push events, so a read-only fork-PR token never masks
+the gate's real conclusion.
 
 ## How pass/fail becomes a commit status
 

@@ -33,9 +33,19 @@ on:
         required: false
         default: ambient-report
         type: string
+      comment:
+        description: >-
+          Post (and update on re-runs) a sticky pull-request comment with the
+          Markdown report summary. No-op on push events (no PR to comment on).
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
+  # Needed by the sticky PR comment below. Reusable-workflow tokens are capped
+  # by the caller, so the caller must also grant pull-requests: write.
+  pull-requests: write
 
 jobs:
   ambient-test:
@@ -107,3 +117,36 @@ jobs:
           path: ${{ inputs.example-path }}/.ambient/report
           if-no-files-found: warn
           retention-days: 14
+
+      # `ambient test` writes summary.md next to report.html (before its
+      # exit-code check), so it exists on red runs too. Append a link to this
+      # run, where the artifact with the full HTML report can be downloaded.
+      - name: Build PR comment
+        if: always() && inputs.comment && github.event_name == 'pull_request'
+        working-directory: ${{ inputs.example-path }}
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        run: |
+          mkdir -p .ambient/report
+          comment=.ambient/report/comment.md
+          if [ -f .ambient/report/summary.md ]; then
+            cp .ambient/report/summary.md "$comment"
+          else
+            printf '## ❌ ambient · visual regression\n\nThe run failed before a report was produced — see the logs.\n' > "$comment"
+          fi
+          {
+            echo
+            echo "📦 [Download the full HTML report & diff PNGs]($RUN_URL) — open \`report.html\` from the **$ARTIFACT_NAME** artifact."
+          } >> "$comment"
+
+      # Sticky comment: keyed by `header`, so re-runs edit the same comment
+      # instead of stacking new ones. Never let a comment failure (e.g. a
+      # read-only fork-PR token) mask the gate's real conclusion.
+      - name: Comment report on PR
+        if: always() && inputs.comment && github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ambient-visual-gate
+          path: ${{ inputs.example-path }}/.ambient/report/comment.md
